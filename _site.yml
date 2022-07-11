@@ -1,0 +1,38 @@
+name: "Dr. -Ing. Benson Kenduiywo"
+output_dir: "."
+author: https://www.linkedin.com/in/benson-kenduiywo-1a218137
+google_analytics: UA-154446467-1
+navbar:
+  title: "Maize Yield Forecasting"
+  type: inverse
+  left:
+    - text: "Home"
+      icon: fa-home
+      href: index.html
+    - text: "More"
+      icon: fa-gear      
+      menu:
+        - text: "Zambia Forecasts"
+          href: zambia/outlook.html
+        - text: "Uganda Forecasts"
+          href: uganda/outlook.html
+        - text: "Rwanda Forecasts"
+          href: rwanda/outlook.html
+  right:
+    - icon: fa-envelope fa-lg
+      href: mailto:bensonkemboi@gmail.com
+    - icon: fab fa-github fa-lg
+      href: http://github.com/bensonkenduiywo
+    - icon: fab fa-twitter fa-lg
+      href: https://twitter.com/bensonkenduiywo
+    - icon: fab fa-linkedin fa-lg
+      href: https://www.linkedin.com/in/benson-kenduiywo-1a218137
+
+output:
+  html_document:
+    theme: yeti
+    highlight: textmate
+    include:
+      after_body: footer.html
+    css: styles.css
+

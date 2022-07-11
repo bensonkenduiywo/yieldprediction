@@ -1,0 +1,25 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### About me
+
+An overview of my activities is available here:
+<div itemscope itemtype="https://schema.org/Person"><a itemprop="sameAs" content="https://orcid.org/0000-0002-8448-0499" href="https://orcid.org/0000-0002-8448-0499" target="orcid.widget" rel="me noopener noreferrer" style="vertical-align:top;"><img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" style="width:1em;margin-right:.5em;" alt="ORCID iD icon">https://orcid.org/0000-0002-8448-0499</a></div>
+
+### Background
+
+This site presents visualization of RHEAS maize yield forecasts.
+
+### Forecasst
+
+maize yield forecast have beend done for the following countries:
+
+1. [Zambia](zambia/outlook.html).
+2. [Uganda](uganda/outlook.html).
+2. [Rwanda](rwanda/outlook.html).
+
+### References
+
+Caers, J. (2005). [*Petroleum geostatistics*](https://store.spe.org/Petroleum-Geostatistics-P45.aspx). Society of Petroleum Engineers Richardson
