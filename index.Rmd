@@ -22,4 +22,4 @@ maize yield forecast have beend done for the following countries:
 
 ### References
 
-Caers, J. (2005). [*Petroleum geostatistics*](https://store.spe.org/Petroleum-Geostatistics-P45.aspx). Society of Petroleum Engineers Richardson
+Andreadis, K. M., Das, N., Stampoulis, D., Ines, A., Fisher, J. B., Granger, S., Kawata, J., Han, E., & Behrangi, A. (2017). [The regional hydrologic extremes assessment system: A software framework for hydrologic modeling and data assimilation.](https://doi.org/10.1371/journal.pone.0176506) *PLoS ONE*, 12(5), 1–22.
