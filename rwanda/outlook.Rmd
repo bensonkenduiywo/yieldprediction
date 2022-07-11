@@ -1,0 +1,164 @@
+---
+title: "Rwanda Maize Yield Forecast"
+author: "Dr. -Ing. MISK Benson Kenduiywo"
+csl: "apa-6th-edition.csl"
+output: 
+   html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60))
+opts_knit$set(global.par = TRUE)
+```
+
+## RHEAS forecasts
+
+Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
+
+```{r rh1, echo=FALSE, message=F}
+rm(list = ls(all=TRUE))
+unlink(".RData")
+root <- "D:/RCMRD/Data/Yields/"
+tt <- read.csv(paste0(root, "RHEAS/rwanda_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+tt$harvest <- as.Date(tt$harvest)
+tt$planting <- as.Date(tt$planting)
+tt$date <- format(tt$harvest, format = "%Y")
+names(tt)[3] <- "District"
+tt$District <- toupper(tt$District)
+```
+
+
+## Metrics aggregagation
+
+Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
+
+There two maize growing seasons in Rwanda [(One Acre Fund)](https://oneacrefund.org/blog/one-acre-fund-rwanda-launches-joint-venture-produce-maize-seed/#:~:text=Rwanda%20traditionally%20has%20two%20growing,in%20the%20shorter%20Season%20B.):
+1) Season 1: sowing in September and harvesting January.
+2) Season 2: sowing in February and harvesting in June. 
+
+So we will aggregate the metrics and yield forecast per district with this condition using the function `RH_metrics`.
+
+```{r rh2, echo=F, message=F}
+RH_metrics <- function(rh, sStart, sEnd, season){
+  rh <- subset(rh, format(as.Date(rh$planting), "%m") >= sStart & format(as.Date(rh$harvest), "%m") <= sEnd)
+  rh$Season <- season
+  rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("District","date", "Season")], mean, na.rm=T)
+  return(rh)
+}
+
+rh1 <- RH_metrics(tt, sStart ="09", sEnd = "02", "1")
+rh2 <- RH_metrics(tt, sStart ="01", sEnd = "08", "2")
+rh <- rbind(rh1,rh2)
+
+```
+
+Convert RHEAS yields from kg/ha to MT/ha.
+
+```{r rh3, echo=FALSE}
+rh$gwad <- rh$gwad/1000
+```
+
+
+## Visualization
+
+Add shapefile for visualization.
+
+```{r, v1, echo=F, message=F}
+library(raster)
+filename <- "D:/Adm data/rwanda/gadm36_RWA_2.shp"
+uga <- shapefile(filename)
+names(uga)[7] <- "District"
+uga$District <- toupper(uga$District)
+```
+
+
+Check and format District names to be consistent in both the RHEAS and administrative boundaries.
+
+```{r v2, echo=F, message=F}
+c <- sort(unique(uga$District))
+c[!c %in% sort(unique(rh$District))]
+```
+
+ Merge RHEAS and Admin data.
+ 
+```{r v3, echo=F, message=F}
+uga <-  merge(uga[,"District"], rh, by = "District", duplicateGeoms=TRUE)
+path <- "D:/RCMRD/Code/yieldprediction"
+shapefile(uga[,c("District", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/rwanda/rwanda_Maize_Forecasts.shp"),overwrite=T)
+
+```
+
+
+### First Season
+
+Visualize RHEAS predicted yields spatially for *season 1*. *NOTE: Ignore yields over the lake area*.
+
+```{r v4, echo=F, message=F}
+library(tmap)
+library(mapview)
+uga.p  <- uga
+year <- 2022
+uga.p <- subset(uga.p, date==year & Season==1)
+tmap_mode("view")
+map_a <- tm_shape(uga.p, name="Average yield (MT/ha) per District") +
+  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_a
+
+```
+
+The first season seems to do well on average.
+
+### Second Season
+
+Now lets how  *season 2* looks spatially
+
+```{r v5, echo=F , message=F}
+library(tmap)
+library(mapview)
+uga.p  <- uga
+year <- 2022
+uga.p <- subset(uga.p, date==year & Season==2)
+tmap_mode("view")
+map_a <- tm_shape(uga.p, name="Average yield (MT/ha) per District") +
+  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_a
+
+```
+
+
+## Annual Seasonal Trends
+
+Visualize trends for the last 5 years.
+ 
+```{r bb1, echo=FALSE}
+library(ggplot2)
+temp <- rh[rh$date > 2009,]
+p <- ggplot(temp, aes(x = date, y = gwad))
+
+p <- p + geom_boxplot(
+  aes(fill = Season),
+  position = position_dodge(0.9) 
+  ) +
+  scale_fill_manual(values = c("#999999", "#E69F00"))+
+  ggtitle("Annual Seasonal  Maize Yield")+
+  labs(y = "Yield (MT/ha)", x = "Year")
+p
+
+```
+ 
