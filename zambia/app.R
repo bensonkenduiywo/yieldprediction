@@ -1,6 +1,8 @@
 library(shiny)
 library(tmap)
-Zambia <- shapefile("Zambia_Maize_Forecasts.shp")
+library(raster)
+path <- "D:/RCMRD/Code/yieldprediction"
+Zambia <- shapefile(paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"))
 #Rename the variables
 names(Zambia)[2] <- "Water_Stress"
 names(Zambia)[3] <- "LAI"
