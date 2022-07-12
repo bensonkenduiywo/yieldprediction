@@ -4,7 +4,7 @@ author: https://www.linkedin.com/in/benson-kenduiywo-1a218137
 google_analytics: UA-154446467-1
 navbar:
   title: "Maize Yield Forecasting"
-  type: inverse
+  type: inverse 
   left:
     - text: "Home"
       icon: fa-home
