@@ -109,7 +109,7 @@ year <- 2022
 uga.p <- subset(uga.p, date==year & Season==1)
 tmap_mode("view")
 map_a <- tm_shape(uga.p, name="Average yield (MT/ha) per District") +
-  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
+  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(2023, " Yield (MT/ha)"), "Leaf Area Index")) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
@@ -132,7 +132,7 @@ year <- 2022
 uga.p <- subset(uga.p, date==year & Season==2)
 tmap_mode("view")
 map_a <- tm_shape(uga.p, name="Average yield (MT/ha) per District") +
-  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(2023, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
+  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
