@@ -158,9 +158,9 @@ Visualize RHEAS predicted yields spatially.
 ```{r v4, echo=FALSE, warning=FALSE, message=FALSE}
 library(tmap)
 library(mapview)
-tmap_mode("view")
+tmap_mode("view") #breaks = seq(2,4.1,0.1)
 map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
-  tm_polygons("gwad", id="gwad",breaks = seq(2,4,0.4),  title="Maize yield (MT/ha) 2022") +
+  tm_polygons("gwad", id="gwad",  title="Maize yield (MT/ha) 2022") +
   tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
