@@ -84,13 +84,24 @@ ref.agg <- aggregate(ref[,"yield_MT_ha", drop=FALSE], ref[, c("District","Year")
 Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
 
 ```{r rh1, echo=FALSE, warning=FALSE, message=FALSE}
-tt <- read.csv(paste0(root, "RHEAS/zambia_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+tt <- read.csv(paste0(root, "RHEAS/zambia_chirps_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
 names(tt)[3] <- "District"
 tt$District[tt$District=="CHIENGI"] <- "CHIENGE"
 tt$District[tt$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+```{r ss, echo=FALSE, warning=FALSE, message=FALSE}
+ss <- read.csv(paste0(root, "RHEAS/zambia_tamsat_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+ss$harvest <- as.Date(ss$harvest)
+ss$planting <- as.Date(ss$planting)
+ss$date <- format(ss$harvest, format = "%Y")
+names(ss)[3] <- "District"
+ss$District[ss$District=="CHIENGI"] <- "CHIENGE"
+ss$District[ss$District=="SHANGOMBO"] <- "SHANG'OMBO"
 ```
 
 
@@ -108,13 +119,14 @@ RH_metrics <- function(rh, sStart, sEnd){
 }
 
 rh <- RH_metrics(tt, sStart ="10", sEnd = "06")
-
+rs <- RH_metrics(ss, sStart ="10", sEnd = "06")
 ```
 
 Convert RHEAS yields from kg/ha to MT/ha.
 
 ```{r rh3, echo=FALSE, warning=FALSE, message=FALSE}
 rh$gwad <- rh$gwad/1000
+rs$gwad <- rs$gwad/1000
 ```
 
 
@@ -146,7 +158,8 @@ c[!c %in% sort(unique(zmb$District))]
  Merge RHEAS and Admin data.
  
 ```{r v3, echo=FALSE, warning=FALSE, message=FALSE}
-zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
+#zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
+zmb <-  merge(zmb[,"District"], rs, by = "District")
 path <- "D:/RCMRD/Code/yieldprediction"
 shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
 
@@ -214,18 +227,21 @@ Compare RHEAS with MoA forecasts.
 First check consistency in Districts names.
 
 ```{r val1, echo=FALSE, warning=FALSE, message=FALSE}
-c <- sort(unique(rh$District))
+c <- sort(unique(rs$District))
 c[!c %in% sort(unique(ref.agg$District))]
 ```
 
 Merge the MoA forecasts with RHEAS ones by year and District.
 
 ```{r val2, echo=FALSE, warning=FALSE, message=FALSE}
-baseYear <- 2011
+baseYear <- 2022
 x <- rh[rh$date>=baseYear,]
 names(x)[2] <- "Year"
 y <- ref.agg[ref.agg$Year>=baseYear,]
-dff <-  merge(x,y, by = c("District", "Year"))
+dff <-  merge(x, y, by = c("District", "Year"))
+z <- rs[rs$date>=baseYear,]
+names(z)[2] <- "Year"
+dfff <- merge(z, y, by = c("District", "Year"))
 
 ```
 
@@ -264,7 +280,7 @@ boxplot(gwad~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year",
 We can use the Root Mean Square Error (RMSE)  and mean absolute percentage error (MAPE) to evaluate the models accuracy. RMSE is given as:
 
 $$
-\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n \widehat{y}-y},
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}},
 $$
 where $\widehat{y}$  and $y$ are predicted yields and observed yields respectively while *n* is the number of fitted points.
 
@@ -278,7 +294,34 @@ rmse <- function(error){
 Compute RMSE.
 
 ```{r val5, echo=FALSE, warning=FALSE, message=FALSE}
-rmse(dff$gwad-dff$yield_MT_ha)
+
+cat("CHIRPS ", rmse(dff$gwad-dff$yield_MT_ha), "\n")
+cat("TAMSAT ", rmse(dfff$gwad-dfff$yield_MT_ha), "\n")
 ```
 
 
+What about Relative root mean square error (RRMSE):
+
+$$
+\text{RRMSE} = \frac{\sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}}}{\frac{1}{n} \sum_{i=1}^n y},
+$$
+
+
+```{r rrmse, echo=FALSE, warning=FALSE, message=FALSE}
+rrmse <- function(predicted, observed){
+  error <- observed - predicted
+  re <- sqrt(mean(error^2))/mean(observed)
+  return(re*100)
+}
+```
+
+
+Compute RRMSE.
+
+```{r val6, echo=FALSE, warning=FALSE, message=FALSE}
+
+cat("CHIRPS RRMSE ", rrmse(dff$gwad, dff$yield_MT_ha), "\n")
+cat("TAMSAT RRMSE ", rrmse(dfff$gwad, dfff$yield_MT_ha), "\n")
+```
+
+According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), the performance of the model is excellent when RRMSE < 10%; good if 10\% < RRMSE < 20\%; fair if 20\% < RRMSE < 30\%; and poor if RRMSE ≥ 30\%.

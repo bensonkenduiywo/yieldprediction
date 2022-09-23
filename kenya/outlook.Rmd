@@ -105,19 +105,22 @@ names(tt)[3] <- "County"
 
 ## Production forecast and RHEAS metrics aggregagation
 
-Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
+Aggregate RHEAS production forecasts and metrics with respect to County maize growing calendar. 
 
-The maize growing season in Zambia starts from October to end of June. So we will aggregate the metrics and forecast with this condition using the function `RH_metrics`.
+Generally the maize growing season in Kenya can be grouped into two e.g. March--October and September--February. So we will aggregate the metrics and forecast with this condition using the function `RH_metrics`.
 
 ```{r rh2}
-RH_metrics <- function(rh, sStart, sEnd){
+RH_metrics <- function(rh, sStart, sEnd, season){
   rh <- subset(rh, format(as.Date(rh$planting), "%m") >= sStart & format(as.Date(rh$harvest), "%m") <= sEnd)
-  rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("District","date")], mean, na.rm=T)
+  rh$Season <- season
+  rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("County","date", "Season")], mean, na.rm=T)
   return(rh)
 }
 
-rh <- RH_metrics(tt, sStart ="10", sEnd = "06")
-
+rh1 <- RH_metrics(tt, sStart ="09", sEnd = "02", "1")
+rh2 <- RH_metrics(tt, sStart ="03", sEnd = "11", "2")
+rh <- rbind(rh1,rh2)
+rh$County <- toupper(rh$County)
 ```
 
 Convert RHEAS yields from kg/ha to MT/ha.
@@ -133,86 +136,77 @@ Add shapefile for visualization.
 
 ```{r, v1}
 library(raster)
-filename <- "D:/Adm data/Zambia/gadm36_ZMB_2.shp"
-zmb <- shapefile(filename)
-names(zmb)[14] <- "District"
-zmb$District[zmb$District=="CHIENGI"] <- "CHIENGE"
-zmb$District[zmb$District=="SHANGOMBO"] <- "SHANG'OMBO"
+filename <- "D:/Adm data/Kenya_counties_2011/Kenya_county_dd.shp"
+ke <- shapefile(filename)
+names(ke)[1] <- "County"
+ke$County <- toupper(ke$County)
 ```
 
 
-Check and format District names to be consistent in both the RHEAS and administrative boundaries.
+Check and format County names to be consistent in both the RHEAS forecasts and that of administrative boundaries.
 
 ```{r v2}
 #RHEAS
-c <- sort(unique(rh$District))
-c[!c %in% sort(unique(zmb$District))]
+c <- sort(unique(rh$County))
+c[!c %in% sort(unique(ke$County))]
 #MoA Forecasts
-c <- sort(unique(ref$District))
-c[!c %in% sort(unique(zmb$District))]
+c <- sort(unique(ref$County))
+c[!c %in% sort(unique(ke$County))]
 ```
 
  Merge RHEAS and Admin data.
  
 ```{r v3}
-zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
+ke <-  merge(ke[,"County"], rh[rh$date=="2022",], by = "County", duplicateGeoms=TRUE)
 path <- "D:/RCMRD/Code/yieldprediction"
-shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
+shapefile(ke[,c("County", "wsgd", "lai","gwad")], paste0(path,"/kenya/kenya_Maize_Forecasts.shp"), overwrite=T)
 
 ```
 
-
 Visualize RHEAS predicted yields spatially.
 
-```{r v4}
+### First Season
+
+Visualize RHEAS predicted yields spatially for *season 1*. *NOTE: Ignore yields over the lake area*.
+
+```{r v4, echo=F, message=F}
 library(tmap)
 library(mapview)
+ke.p  <- ke
+year <- 2022
+ke.p <- subset(ke.p, date==year & Season==1)
 tmap_mode("view")
-map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
-  tm_polygons("gwad", id="gwad",breaks = seq(2,4,0.4),  title="Maize yield (MT/ha) 2022") +
-  tm_text("District", size = 0.75)+
+map_a <- tm_shape(ke.p, name="Average yield (MT/ha) per County") +
+  tm_polygons(col=c("gwad", "lai"), title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
 map_a
 
-#lf <- tmap_leaflet(map_a)
-#mapshot(lf, file = "D:/RCMRD/Presentations/ISPRS_2022/Yields_2022_MODIS.png")
-
 ```
 
+The first season seems to do well on average.
 
-## Planting/Harvest date detection
+### Second Season
 
-Lets Evaluate earliest Planting and harvest dates or months over the years according to the model's detection.
+Now lets how  *season 2* looks spatially
 
-```{r p1}
+```{r v5, echo=F , message=F}
+library(tmap)
+library(mapview)
+ke.p  <- ke
+year <- 2022
+ke.p <- subset(ke.p, date==year & Season==2)
+tmap_mode("view")
+map_a <- tm_shape(ke.p, name="Average yield (MT/ha) per County") +
+  tm_polygons(col=c("gwad", "lai"), title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_a
 
-plantHarvest <- function(df, year){
-  temp <- subset(df, date==year)
-  d <- sort(unique(temp$District))
-  mat <- matrix(, nrow = length(d), ncol = 4)
-  for(i in 1:length(d)){
-    dist <- subset(temp, District=d[i])
-    dist$planting <- as.character(dist$planting)
-    dist$harvest <- as.character(dist$harvest)
-    p1 <- min(dist$planting)
-    p2 <- max(dist$planting)
-    h1 <- min(dist$harvest)
-    h2 <- max(dist$harvest)
-    mat[i, ] <- c(p1,p2,h1,h2)
-  }
-  #row.names(mat) <- sort(unique(temp$District))
-  mat <- as.data.frame(mat)
-  mat$District <- sort(unique(temp$District))
-  names(mat)[1] <- "Plant_Early"
-  names(mat)[2] <- "Plant_Late"
-  names(mat)[3] <- "Harvest_Early"
-  names(mat)[4] <- "Harvest_Late"
-  return(mat)
-}
-
-temp <- plantHarvest(tt, 2022)
-kable(head(temp))
 ```
 
 
@@ -223,27 +217,27 @@ Compare RHEAS with MoA forecasts.
 First check consistency in Districts names.
 
 ```{r val1}
-c <- sort(unique(rh$District))
-c[!c %in% sort(unique(ref.agg$District))]
+c <- sort(unique(rh$County))
+c[!c %in% sort(unique(ref.agg$County))]
 ```
 
 Merge the MoA forecasts with RHEAS ones by year and District.
 
 ```{r val2}
-baseYear <- 2011
+baseYear <- 2010
 x <- rh[rh$date>=baseYear,]
 names(x)[2] <- "Year"
 y <- ref.agg[ref.agg$Year>=baseYear,]
-dff <-  merge(x,y, by = c("District", "Year"))
+dff <-  merge(x,y, by = c("County", "Year"))
 
 ```
 
 Plot RHEAS forecast versus MoA forecasts.
 
 ```{r val3}
-dff <- dff[dff$yield_MT_ha <=4.5,]
+#dff <- dff[dff$Yield_MT_ha <= 4.5,]
 x11()
-plot(gwad~yield_MT_ha, data=dff, pch=16, xlim = c(0,4.5), ylim = c(0,4.5), xlab="MoA Forecasts (MT/ha)", ylab="RHEAS Forecasts (MT/ha)")
+plot(gwad~Yield_MT_ha, data=dff, pch=16, xlim = c(0,4.5), ylim = c(0,4.5), xlab="MoA Forecasts (MT/ha)", ylab="RHEAS Forecasts (MT/ha)")
 abline(0,1, lwd=2, col="red")
 ```
 
@@ -251,10 +245,10 @@ abline(0,1, lwd=2, col="red")
 Plot the two datasets trends.
 
 ```{r val4}
-dff.agg <- aggregate(dff[,c("yield_MT_ha", "gwad"), drop=FALSE], dff[, "Year", drop=FALSE], mean, na.rm=TRUE)
+dff.agg <- aggregate(dff[,c("Yield_MT_ha", "gwad"), drop=FALSE], dff[, "Year", drop=FALSE], mean, na.rm=TRUE)
 
 x11()
-plot(dff.agg$Year, dff.agg$yield_MT_ha, type="l", lwd=2, col="red", ylim = c(0,4), ylab="Maize Forecasts (MT/ha)", xlab="Year")
+plot(dff.agg$Year, dff.agg$Yield_MT_ha, type="l", lwd=2, col="red", ylim = c(0,4), ylab="Maize Forecasts (MT/ha)", xlab="Year")
 lines(dff.agg$Year, dff.agg$gwad, col="blue", lwd=2)
 legend("topright", c("MoA", "RHEAS"), col=c("red","blue"), lty = 1, lwd=2)
 
@@ -264,8 +258,8 @@ legend("topright", c("MoA", "RHEAS"), col=c("red","blue"), lty = 1, lwd=2)
 
 ```{r test}
 par(mfrow=c(1,2))
-dff$District <- substr(dff$District, start=1,stop=3)
-boxplot(yield_MT_ha~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+dff$County <- substr(dff$County, start=1,stop=3)
+boxplot(Yield_MT_ha~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", main="MoA Annual Forecasts.")
 
 boxplot(gwad~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", ylim=c(0,4.5), main="RHEAS Annual Forecasts.")
 ```
@@ -287,7 +281,7 @@ rmse <- function(error){
 Compute RMSE.
 
 ```{r val5}
-rmse(dff$gwad-dff$yield_MT_ha)
+rmse(dff$gwad-dff$Yield_MT_ha)
 ```
 
 
