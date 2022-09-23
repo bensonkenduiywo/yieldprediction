@@ -379,9 +379,389 @@ select a dominant variety for maize yield prediction.</p>
 <h2>Reference data</h2>
 <p>Load Zambia’s ministry of agriculture maize forecasts data as
 reference.</p>
-<p>Load data</p>
+<p>Load cultivars data. Basically, 12 maize cultivars were tested
+between 2010–2022 to</p>
 <pre><code>## [1] &quot;Province&quot;      &quot;District&quot;      &quot;planted_ha&quot;    &quot;harvested_ha&quot; 
 ## [5] &quot;production_MT&quot; &quot;yield_MT_ha&quot;   &quot;Year&quot;</code></pre>
+<p>Convert District and province names to upper case.</p>
+<pre><code>##  [1] &quot;CENTRAL&quot;       &quot;COPPERBELT&quot;    &quot;EASTERN&quot;       &quot;LUAPULA&quot;      
+##  [5] &quot;LUSAKA&quot;        &quot;MUCHINGA&quot;      &quot;NORTH-WESTERN&quot; &quot;NORTHERN&quot;     
+##  [9] &quot;SOUTHERN&quot;      &quot;WESTERN&quot;</code></pre>
+<table>
+<caption>Districts</caption>
+<thead>
+<tr class="header">
+<th align="left">x</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">CHADIZA</td>
+</tr>
+<tr class="even">
+<td align="left">CHAMA</td>
+</tr>
+<tr class="odd">
+<td align="left">CHAVUMA</td>
+</tr>
+<tr class="even">
+<td align="left">CHIBOMBO</td>
+</tr>
+<tr class="odd">
+<td align="left">CHIENGE</td>
+</tr>
+<tr class="even">
+<td align="left">CHILILABOMBWE</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="cultivars-production" class="section level2">
+<h2>Cultivars production</h2>
+<p>Load information on different cultivars production potential as
+predicted by RHEA.</p>
+<pre class="r"><code>files &lt;- list.files(paste0(root, &quot;Cultivars_Selection/Zambia/&quot;), full.names = T)
+f &lt;- read.csv(files[1], stringsAsFactors =  FALSE)
+df_list &lt;- list()
+for(i in 1:length(files)){
+  f &lt;- read.csv(files[i], stringsAsFactors =  FALSE)
+  f$cultivar &lt;- sub(&quot;\\_.*&quot;, &quot;&quot;, basename(files[i]))
+  temp &lt;- sub(&quot;_v2&quot;, &quot;&quot;, tools::file_path_sans_ext(basename(files[i])))
+  f$Year &lt;- sub(&quot;.*\\_|.csv.*&quot;, &quot;&quot;, temp)
+  df_list[[i]] &lt;- f
+}
+
+df &lt;- do.call(rbind, df_list)
+df$cname[df$cname==&quot;CHIENGI&quot;] &lt;- &quot;CHIENGE&quot;
+df$cname[df$cname==&quot;SHANGOMBO&quot;] &lt;- &quot;SHANG&#39;OMBO&quot;
+df$gwad &lt;- df$gwad/1000</code></pre>
+<p>Check missing names.</p>
+<pre class="r"><code>c &lt;- sort(unique(ref$District))
+c[!c %in% sort(unique(df$cname))]</code></pre>
+<pre><code>## [1] &quot;CHILILABOMBWE&quot; &quot;IKELENGE&quot;      &quot;KALOMO&quot;        &quot;LIVINGSTONE&quot;  
+## [5] &quot;LUFWANYAMA&quot;    &quot;MAFINGA&quot;</code></pre>
+<p>Merge RHEAS and observed MOA data</p>
+<pre class="r"><code>rh_q &lt;- aggregate(gwad~cname+cultivar+Year, data=df, FUN = &#39;quantile&#39;, probs=c(0.25, 0.5, .75, .95), na.rm=T)
+rh_q &lt;- do.call(data.frame, rh_q)
+names(rh_q) &lt;- gsub(&quot;\\.&quot;,&quot;&quot;,names(rh_q))
+rh_m &lt;-aggregate(gwad~cname+cultivar+Year, data=df, FUN = mean, na.rm=T) #aggregate(df[,&quot;gwad&quot;], df[,c(&quot;cname&quot;,&quot;cultivar&quot;, &quot;Year&quot;)], mean, na.rm=T)
+names(rh_m)[4] &lt;- &quot;gwadmean&quot;
+rh &lt;- rh_q
+rh$gwadmean &lt;- rh_m$gwadmean
+names(rh)[1] &lt;- &quot;District&quot;
+dff &lt;- merge(ref,rh, by=c(&quot;District&quot;, &quot;Year&quot;))</code></pre>
+</div>
+<div id="validation" class="section level2">
+<h2>Validation</h2>
+<div id="rmse" class="section level3">
+<h3>RMSE</h3>
+<p>We can use the Root Mean Square Error (RMSE) and mean absolute
+percentage error (MAPE) to evaluate the models accuracy. RMSE is given
+as:</p>
+<p><span class="math display">\[
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}},
+\]</span> where <span class="math inline">\(\widehat{y}\)</span> and
+<span class="math inline">\(y\)</span> are predicted yields and observed
+yields respectively while <em>n</em> is the number of fitted points.</p>
+</div>
+<div id="rrmse" class="section level3">
+<h3>RRMSE</h3>
+<p>What about Relative root mean square error (RRMSE):</p>
+<p><span class="math display">\[
+\text{RRMSE} = \frac{\sqrt{\frac{1}{n} \sum_{i=1}^n
+y-\widehat{y}}}{\frac{1}{n} \sum_{i=1}^n y},
+\]</span></p>
+<p>According to <a href="ttp://dx.doi.org/10.1016/j.enconman.2013.03.004">Li et
+al. 2013</a>, the performance of the model is excellent when RRMSE &lt;
+10%; good if 10% &lt; RRMSE &lt; 20%; fair if 20% &lt; RRMSE &lt; 30%;
+and poor if RRMSE ≥ 30%.</p>
+</div>
+<div id="compute-validation-measures" class="section level3">
+<h3>Compute validation measures</h3>
+<pre class="r"><code>val &lt;- data.frame()
+for(i in 1:length(unique(dff$cultivar))){
+  print(paste0(&quot;cultivar&quot;,i))
+  temp &lt;- subset(dff, cultivar==paste0(&quot;cultivar&quot;,i))
+  rmse_m &lt;- rmse(temp$gwadmean-temp$yield_MT_ha)
+  rrmse_m &lt;- rrmse(temp$gwadmean, temp$yield_MT_ha)
+  rmse25 &lt;- rmse(temp$gwad25-temp$yield_MT_ha)
+  rrmse25 &lt;- rrmse(temp$gwad25, temp$yield_MT_ha)
+  rmse50 &lt;- rmse(temp$gwad50-temp$yield_MT_ha)
+  rrmse50 &lt;- rrmse(temp$gwad50, temp$yield_MT_ha)
+  rmse75 &lt;- rmse(temp$gwad75-temp$yield_MT_ha)
+  rrmse75 &lt;- rrmse(temp$gwad75, temp$yield_MT_ha)
+  rmse95 &lt;- rmse(temp$gwad95-temp$yield_MT_ha)
+  rrmse95 &lt;- rrmse(temp$gwad95, temp$yield_MT_ha)
+  output &lt;- c(i, rmse_m, rrmse_m, rmse25, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
+  val &lt;-  rbind(val, output)
+}</code></pre>
+<pre><code>## [1] &quot;cultivar1&quot;
+## [1] &quot;cultivar2&quot;
+## [1] &quot;cultivar3&quot;
+## [1] &quot;cultivar4&quot;
+## [1] &quot;cultivar5&quot;
+## [1] &quot;cultivar6&quot;
+## [1] &quot;cultivar7&quot;
+## [1] &quot;cultivar8&quot;
+## [1] &quot;cultivar9&quot;
+## [1] &quot;cultivar10&quot;
+## [1] &quot;cultivar11&quot;
+## [1] &quot;cultivar12&quot;</code></pre>
+<pre class="r"><code>colnames(val) &lt;-c(&quot;Cultivar&quot;, &quot;RMSE_mean&quot;, &quot;RRMSE_mean&quot;, &quot;RMSE25&quot;, &quot;RRMSE25&quot;, &quot;RMSE50&quot;, &quot;RRMSE50&quot;, &quot;RMSE75&quot;, &quot;RRMSE75&quot;, &quot;RMSE95&quot;, &quot;RRMSE95&quot;)
+
+knitr::kable(val,caption = &quot;Cultivar assessement based on ensemble mean, 25%. 50%, 75% and 95% percentiles respectively.&quot;)</code></pre>
+<table>
+<caption>Cultivar assessement based on ensemble mean, 25%. 50%, 75% and
+95% percentiles respectively.</caption>
+<colgroup>
+<col width="8%" />
+<col width="9%" />
+<col width="10%" />
+<col width="9%" />
+<col width="9%" />
+<col width="8%" />
+<col width="9%" />
+<col width="8%" />
+<col width="9%" />
+<col width="8%" />
+<col width="9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="right">Cultivar</th>
+<th align="right">RMSE_mean</th>
+<th align="right">RRMSE_mean</th>
+<th align="right">RMSE25</th>
+<th align="right">RRMSE25</th>
+<th align="right">RMSE50</th>
+<th align="right">RRMSE50</th>
+<th align="right">RMSE75</th>
+<th align="right">RRMSE75</th>
+<th align="right">RMSE95</th>
+<th align="right">RRMSE95</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">2.297855</td>
+<td align="right">106.31705</td>
+<td align="right">1.8955939</td>
+<td align="right">87.70524</td>
+<td align="right">2.458690</td>
+<td align="right">113.75852</td>
+<td align="right">2.917600</td>
+<td align="right">134.99135</td>
+<td align="right">3.500593</td>
+<td align="right">161.96525</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="right">4.074704</td>
+<td align="right">188.52818</td>
+<td align="right">3.3219070</td>
+<td align="right">153.69781</td>
+<td align="right">4.146489</td>
+<td align="right">191.84951</td>
+<td align="right">5.042231</td>
+<td align="right">233.29367</td>
+<td align="right">6.012354</td>
+<td align="right">278.17927</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="right">1.929517</td>
+<td align="right">89.27480</td>
+<td align="right">1.7130693</td>
+<td align="right">79.26020</td>
+<td align="right">1.949013</td>
+<td align="right">90.17685</td>
+<td align="right">2.242134</td>
+<td align="right">103.73893</td>
+<td align="right">2.656623</td>
+<td align="right">122.91650</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="right">1.776757</td>
+<td align="right">82.20692</td>
+<td align="right">1.6059989</td>
+<td align="right">74.30627</td>
+<td align="right">1.849401</td>
+<td align="right">85.56798</td>
+<td align="right">2.069147</td>
+<td align="right">95.73517</td>
+<td align="right">2.362438</td>
+<td align="right">109.30517</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="right">4.098897</td>
+<td align="right">189.64754</td>
+<td align="right">3.3804664</td>
+<td align="right">156.40724</td>
+<td align="right">3.999434</td>
+<td align="right">185.04560</td>
+<td align="right">4.796043</td>
+<td align="right">221.90306</td>
+<td align="right">6.144794</td>
+<td align="right">284.30698</td>
+</tr>
+<tr class="even">
+<td align="right">6</td>
+<td align="right">1.010593</td>
+<td align="right">46.75806</td>
+<td align="right">0.9810784</td>
+<td align="right">45.39248</td>
+<td align="right">1.035003</td>
+<td align="right">47.88745</td>
+<td align="right">1.105469</td>
+<td align="right">51.14778</td>
+<td align="right">1.227535</td>
+<td align="right">56.79554</td>
+</tr>
+<tr class="odd">
+<td align="right">7</td>
+<td align="right">1.588001</td>
+<td align="right">73.47353</td>
+<td align="right">1.4537172</td>
+<td align="right">67.26051</td>
+<td align="right">1.651200</td>
+<td align="right">76.39763</td>
+<td align="right">1.854905</td>
+<td align="right">85.82262</td>
+<td align="right">2.091686</td>
+<td align="right">96.77803</td>
+</tr>
+<tr class="even">
+<td align="right">8</td>
+<td align="right">4.031370</td>
+<td align="right">186.52320</td>
+<td align="right">3.4011361</td>
+<td align="right">157.36358</td>
+<td align="right">3.979138</td>
+<td align="right">184.10656</td>
+<td align="right">4.698463</td>
+<td align="right">217.38826</td>
+<td align="right">5.837988</td>
+<td align="right">270.11170</td>
+</tr>
+<tr class="odd">
+<td align="right">9</td>
+<td align="right">4.206339</td>
+<td align="right">194.61868</td>
+<td align="right">3.4941875</td>
+<td align="right">161.66888</td>
+<td align="right">4.148387</td>
+<td align="right">191.93733</td>
+<td align="right">4.932683</td>
+<td align="right">228.22511</td>
+<td align="right">6.270751</td>
+<td align="right">290.13476</td>
+</tr>
+<tr class="even">
+<td align="right">10</td>
+<td align="right">3.794325</td>
+<td align="right">175.55563</td>
+<td align="right">3.1379499</td>
+<td align="right">145.18650</td>
+<td align="right">3.708998</td>
+<td align="right">171.60772</td>
+<td align="right">4.426394</td>
+<td align="right">204.80016</td>
+<td align="right">5.651020</td>
+<td align="right">261.46108</td>
+</tr>
+<tr class="odd">
+<td align="right">11</td>
+<td align="right">3.577748</td>
+<td align="right">165.53504</td>
+<td align="right">3.1600745</td>
+<td align="right">146.21016</td>
+<td align="right">3.674786</td>
+<td align="right">170.02482</td>
+<td align="right">4.179636</td>
+<td align="right">193.38318</td>
+<td align="right">4.893168</td>
+<td align="right">226.39684</td>
+</tr>
+<tr class="even">
+<td align="right">12</td>
+<td align="right">2.784118</td>
+<td align="right">128.81540</td>
+<td align="right">2.4934866</td>
+<td align="right">115.36850</td>
+<td align="right">2.851660</td>
+<td align="right">131.94043</td>
+<td align="right">3.208645</td>
+<td align="right">148.45740</td>
+<td align="right">3.782620</td>
+<td align="right">175.01406</td>
+</tr>
+</tbody>
+</table>
+<p>Cultivars 6 and 7 seem to show lower RMSE and RRMSE especially on 25%
+percentile RHEAS ensemble yield forecasts. These cultivars corresponds
+to the following names.</p>
+<table>
+<thead>
+<tr class="header">
+<th>No.</th>
+<th>Cultivar Name</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>SC627</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>SC403</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>PAN53</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>DKC8053</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>PHB30G1</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>DKC8033</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>SC627</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>ZMS 606</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>PHB 30G19</td>
+</tr>
+<tr class="even">
+<td>10</td>
+<td>PHB 30B50</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>SC513</td>
+</tr>
+<tr class="even">
+<td>12</td>
+<td>MRI624</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </div>
 
