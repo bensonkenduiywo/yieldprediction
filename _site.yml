@@ -4,11 +4,9 @@ author: https://www.linkedin.com/in/benson-kenduiywo-1a218137
 google_analytics: UA-154446467-1
 navbar:
   title: "Maize Yield Forecasting"
-<<<<<<< HEAD
+
   type: inverse 
-=======
-  type: inverse
->>>>>>> e2efb35 (--web)
+
   left:
     - text: "Home"
       icon: fa-home
@@ -22,6 +20,8 @@ navbar:
           href: uganda/outlook.html
         - text: "Rwanda Forecasts"
           href: rwanda/outlook.html
+        - text: "Cultivar Selection: Zambia"
+          href: zambia/cultivar.html
   right:
     - icon: fa-envelope fa-lg
       href: mailto:bensonkemboi@gmail.com
