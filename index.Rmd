@@ -27,8 +27,8 @@ Maize yield forecast have been done for the following countries using [RHEAS DSS
 
 maize yield forecast have been done for the following countries:
 
-1. [Zambia](zambia/outlook.html).
-2. [Uganda](uganda/outlook.html).
+1. [Zambia RHEAS Forecast](zambia/outlook.html).
+2. [Uganda RHEAS Forecast](uganda/outlook.html).
 2. [Rwanda](rwanda/outlook.html).
 3. [Zambia](zambia/cultivar.html).
 
