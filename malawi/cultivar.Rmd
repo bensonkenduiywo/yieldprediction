@@ -1,0 +1,184 @@
+---
+title: "RHEAS Cultivar Calibration: Malawi"
+author: "Dr. -Ing. MISK Benson Kenduiywo"
+date: '2022-09-23'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Several cultivars from literature within Zambia and Malawi were tested and compared to observed production information in a bid to select a dominant variety for maize yield prediction.
+
+
+## Reference data
+
+Load malawi's ministry of agriculture maize forecasts data as reference.
+
+```{r ref1, echo=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls(all=TRUE))
+unlink(".RData")
+root <- "D:/RCMRD/Data/Yields/"
+r.file <- paste0(root, "Reference/Malawi/MOA/MALAWI_MOA_MAIZE_Production data.csv")
+```
+
+Load cultivars data. Basically, 12 maize cultivars were tested between 2010--2022 to 
+
+```{r ref40, echo=FALSE, warning=FALSE, message=FALSE}
+ref <- read.csv(r.file, stringsAsFactors =  FALSE)
+names(ref)
+```
+
+Convert District and province names to upper case.
+
+```{r ref5, echo=FALSE, warning=FALSE, message=FALSE}
+ref$Division <- trimws(toupper(ref$Division), which = c("both"))
+sort(unique(ref$Province))
+ref$District <- trimws(toupper(ref$District), which = c("both"))
+ref$yield_MT_ha <- as.numeric(ref$yield_MT_ha)
+ref <- na.omit(ref)
+knitr::kable(head(sort(unique(ref$District))), caption="Districts")
+```
+
+
+## Cultivars production
+
+Load information on different cultivars production potential as predicted by RHEA.
+
+```{r c1}
+files <- list.files(paste0(root, "Cultivars_Selection/malawi/"), full.names = T)
+f <- read.csv(files[1], stringsAsFactors =  FALSE)
+df_list <- list()
+for(i in 1:length(files)){
+  f <- read.csv(files[i], stringsAsFactors =  FALSE)
+  f$cultivar <- sub("\\_.*", "", basename(files[i]))
+  temp <- sub("_v2", "", tools::file_path_sans_ext(basename(files[i])))
+  f$Year <- sub(".*\\_|.csv.*", "", temp)
+  df_list[[i]] <- f
+}
+
+df <- do.call(rbind, df_list)
+df$cname <- toupper(df$cname)
+df$gwad <- df$gwad/1000
+```
+
+Check missing names.
+
+```{r c2}
+c <- sort(unique(ref$District))
+c[!c %in% sort(unique(df$cname))]
+```
+
+
+Correct spellings 
+
+```{r sp}
+df$cname[df$cname=="DOWA EAST"] <- "DOWA EAST"
+df$cname[df$cname=="DOWAEAST"]  <- "DOWA EAST"
+df$cname[df$cname=="DOWAEST"]   <- "DOWA EAST"
+c <- sort(unique(ref$District))
+c[!c %in% sort(unique(df$cname))]
+```
+
+Merge RHEAS and observed MOA data
+
+```{r c3}
+rh_q <- aggregate(gwad~cname+cultivar+Year, data=df, FUN = 'quantile', probs=c(0.25, 0.5, .75, .95), na.rm=T)
+rh_q <- do.call(data.frame, rh_q)
+names(rh_q) <- gsub("\\.","",names(rh_q))
+rh_m <-aggregate(gwad~cname+cultivar+Year, data=df, FUN = mean, na.rm=T) #aggregate(df[,"gwad"], df[,c("cname","cultivar", "Year")], mean, na.rm=T)
+names(rh_m)[4] <- "gwadmean"
+rh <- rh_q
+rh$gwadmean <- rh_m$gwadmean
+names(rh)[1] <- "District"
+dff <- merge(ref,rh, by=c("District", "Year"))
+```
+
+
+## Validation
+
+### RMSE
+We can use the Root Mean Square Error (RMSE)  and mean absolute percentage error (MAPE) to evaluate the models accuracy. RMSE is given as:
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}},
+$$
+where $\widehat{y}$  and $y$ are predicted yields and observed yields respectively while *n* is the number of fitted points.
+
+```{r rmse, echo=FALSE, warning=FALSE, message=FALSE}
+rmse <- function(error){
+  sqrt(mean(error^2, na.rm=T))
+}
+
+```
+
+
+### RRMSE
+
+What about Relative root mean square error (RRMSE):
+
+$$
+\text{RRMSE} = \frac{\sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}}}{\frac{1}{n} \sum_{i=1}^n y},
+$$
+
+
+```{r rrmse, echo=FALSE, warning=FALSE, message=FALSE}
+rrmse <- function(predicted, observed){
+  error <- observed - predicted
+  re <- sqrt(mean(error^2, na.rm=T))/mean(observed, na.rm=T)
+  return(re*100)
+}
+```
+
+
+According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), the performance of the model is excellent when RRMSE < 10%; good if 10\% < RRMSE < 20\%; fair if 20\% < RRMSE < 30\%; and poor if RRMSE ≥ 30\%.
+
+
+### Compute validation measures
+
+
+```{r v1}
+val <- data.frame()
+for(i in 1:length(unique(dff$cultivar))){
+  print(paste0("cultivar",i))
+  temp <- subset(dff, cultivar==paste0("cultivar",i))
+  rmse_m <- rmse(temp$gwadmean-temp$yield_MT_ha)
+  rrmse_m <- rrmse(temp$gwadmean, temp$yield_MT_ha)
+  rmse25 <- rmse(temp$gwad25-temp$yield_MT_ha)
+  rrmse25 <- rrmse(temp$gwad25, temp$yield_MT_ha)
+  rmse50 <- rmse(temp$gwad50-temp$yield_MT_ha)
+  rrmse50 <- rrmse(temp$gwad50, temp$yield_MT_ha)
+  rmse75 <- rmse(temp$gwad75-temp$yield_MT_ha)
+  rrmse75 <- rrmse(temp$gwad75, temp$yield_MT_ha)
+  rmse95 <- rmse(temp$gwad95-temp$yield_MT_ha)
+  rrmse95 <- rrmse(temp$gwad95, temp$yield_MT_ha)
+  output <- c(i, rmse_m, rrmse_m, rmse25, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
+  val <-  rbind(val, output)
+}
+colnames(val) <-c("Cultivar", "RMSE_mean", "RRMSE_mean", "RMSE25", "RRMSE25", "RMSE50", "RRMSE50", "RMSE75", "RRMSE75", "RMSE95", "RRMSE95")
+
+knitr::kable(val,caption = "Cultivar assessement based on ensemble mean, 25%. 50%, 75% and 95% percentiles respectively.")
+```
+
+
+Cultivars 6 and 7 seem to show lower RMSE and RRMSE especially on mean of RHEAS ensemble yield forecasts. These cultivars corresponds to the following names. So cultivar 6 (DKC8033) seem to be give better generaliation of yields both in Malawi and Zambia.
+
+| No. | Cultivar Name |
+| --- | ------------- |
+| 1   | SC627         |
+| 2   | SC403         |
+| 3   | PAN53         |
+| 4   | DKC8053       |
+| 5   | PHB30G1       |
+| 6   | DKC8033       |
+| 7   | SC627         |
+| 8   | ZMS 606       |
+| 9   | PHB 30G19     |
+| 10  | PHB 30B50     |
+| 11  | SC513         |
+| 12  | MRI624        |
+
+

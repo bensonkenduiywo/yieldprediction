@@ -29,8 +29,9 @@ maize yield forecast have been done for the following countries:
 
 1. [Zambia RHEAS Forecast](zambia/outlook.html).
 2. [Uganda RHEAS Forecast](uganda/outlook.html).
-2. [Rwanda](rwanda/outlook.html).
-3. [Zambia](zambia/cultivar.html).
+2. [Rwanda RHEAS Forecast](rwanda/outlook.html).
+3. [Zambia Cultivar selection](zambia/cultivar.html).
+4. [Malawi Cultivar selection](malawi/cultivar.html).
 
 ### References
 
