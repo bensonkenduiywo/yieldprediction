@@ -456,7 +456,8 @@ names(rh_m)[4] &lt;- &quot;gwadmean&quot;
 rh &lt;- rh_q
 rh$gwadmean &lt;- rh_m$gwadmean
 names(rh)[1] &lt;- &quot;District&quot;
-dff &lt;- merge(ref,rh, by=c(&quot;District&quot;, &quot;Year&quot;))</code></pre>
+ref.agg &lt;-aggregate(yield_MT_ha~District+Year, data=ref, FUN = mean, na.rm=T)
+dff &lt;- merge(ref.agg,rh, by=c(&quot;District&quot;, &quot;Year&quot;))</code></pre>
 </div>
 <div id="validation" class="section level2">
 <h2>Validation</h2>
@@ -551,166 +552,166 @@ knitr::kable(val,caption = &quot;Cultivar assessement based on ensemble mean, 25
 <tbody>
 <tr class="odd">
 <td align="right">1</td>
-<td align="right">1.926170</td>
-<td align="right">101.21361</td>
-<td align="right">1.479804</td>
-<td align="right">77.75857</td>
-<td align="right">2.016706</td>
-<td align="right">105.97093</td>
-<td align="right">2.697449</td>
-<td align="right">141.74165</td>
-<td align="right">3.564664</td>
-<td align="right">187.31081</td>
+<td align="right">1.8596818</td>
+<td align="right">95.77503</td>
+<td align="right">1.409639</td>
+<td align="right">72.59750</td>
+<td align="right">1.969508</td>
+<td align="right">101.43117</td>
+<td align="right">2.639303</td>
+<td align="right">135.92614</td>
+<td align="right">3.496764</td>
+<td align="right">180.08603</td>
 </tr>
 <tr class="even">
 <td align="right">2</td>
-<td align="right">3.364203</td>
-<td align="right">176.77726</td>
-<td align="right">2.358167</td>
-<td align="right">123.91354</td>
-<td align="right">3.522500</td>
-<td align="right">185.09522</td>
-<td align="right">4.667363</td>
-<td align="right">245.25380</td>
-<td align="right">6.056231</td>
-<td align="right">318.23407</td>
+<td align="right">3.3964635</td>
+<td align="right">174.92045</td>
+<td align="right">2.393664</td>
+<td align="right">123.27554</td>
+<td align="right">3.549308</td>
+<td align="right">182.79209</td>
+<td align="right">4.689563</td>
+<td align="right">241.51607</td>
+<td align="right">6.056120</td>
+<td align="right">311.89479</td>
 </tr>
 <tr class="odd">
 <td align="right">3</td>
-<td align="right">1.875974</td>
-<td align="right">98.57597</td>
-<td align="right">1.479153</td>
-<td align="right">77.72440</td>
-<td align="right">2.015839</td>
-<td align="right">105.92539</td>
-<td align="right">2.627508</td>
-<td align="right">138.06650</td>
-<td align="right">3.066737</td>
-<td align="right">161.14647</td>
+<td align="right">1.7565740</td>
+<td align="right">90.46490</td>
+<td align="right">1.353517</td>
+<td align="right">69.70718</td>
+<td align="right">1.883237</td>
+<td align="right">96.98813</td>
+<td align="right">2.498218</td>
+<td align="right">128.66015</td>
+<td align="right">2.956083</td>
+<td align="right">152.24050</td>
 </tr>
 <tr class="even">
 <td align="right">4</td>
-<td align="right">1.520579</td>
-<td align="right">79.90119</td>
-<td align="right">1.560411</td>
-<td align="right">81.99422</td>
-<td align="right">1.906280</td>
-<td align="right">100.16843</td>
-<td align="right">2.475583</td>
-<td align="right">130.08334</td>
-<td align="right">2.849121</td>
-<td align="right">149.71149</td>
+<td align="right">1.4098145</td>
+<td align="right">72.60652</td>
+<td align="right">1.430671</td>
+<td align="right">73.68063</td>
+<td align="right">1.775531</td>
+<td align="right">91.44119</td>
+<td align="right">2.353923</td>
+<td align="right">121.22883</td>
+<td align="right">2.750021</td>
+<td align="right">141.62819</td>
 </tr>
 <tr class="odd">
 <td align="right">5</td>
-<td align="right">5.156217</td>
-<td align="right">270.94139</td>
-<td align="right">3.854607</td>
-<td align="right">202.54630</td>
-<td align="right">5.558701</td>
-<td align="right">292.09057</td>
-<td align="right">6.997893</td>
-<td align="right">367.71512</td>
-<td align="right">8.408727</td>
-<td align="right">441.84959</td>
+<td align="right">5.1878934</td>
+<td align="right">267.18046</td>
+<td align="right">3.870421</td>
+<td align="right">199.32962</td>
+<td align="right">5.591489</td>
+<td align="right">287.96594</td>
+<td align="right">7.027377</td>
+<td align="right">361.91528</td>
+<td align="right">8.372152</td>
+<td align="right">431.17220</td>
 </tr>
 <tr class="even">
 <td align="right">6</td>
-<td align="right">1.096139</td>
-<td align="right">57.59831</td>
-<td align="right">1.249302</td>
-<td align="right">65.64653</td>
-<td align="right">1.199282</td>
-<td align="right">63.01812</td>
-<td align="right">1.340993</td>
-<td align="right">70.46455</td>
-<td align="right">1.506574</td>
-<td align="right">79.16528</td>
+<td align="right">0.9026446</td>
+<td align="right">46.48688</td>
+<td align="right">1.066254</td>
+<td align="right">54.91291</td>
+<td align="right">1.001525</td>
+<td align="right">51.57930</td>
+<td align="right">1.155143</td>
+<td align="right">59.49077</td>
+<td align="right">1.338206</td>
+<td align="right">68.91862</td>
 </tr>
 <tr class="odd">
 <td align="right">7</td>
-<td align="right">1.483794</td>
-<td align="right">77.96826</td>
-<td align="right">1.355276</td>
-<td align="right">71.21509</td>
-<td align="right">1.747932</td>
-<td align="right">91.84778</td>
-<td align="right">2.101424</td>
-<td align="right">110.42260</td>
-<td align="right">2.444336</td>
-<td align="right">128.44140</td>
+<td align="right">1.3533137</td>
+<td align="right">69.69669</td>
+<td align="right">1.221687</td>
+<td align="right">62.91783</td>
+<td align="right">1.603898</td>
+<td align="right">82.60195</td>
+<td align="right">1.967763</td>
+<td align="right">101.34130</td>
+<td align="right">2.325593</td>
+<td align="right">119.76981</td>
 </tr>
 <tr class="even">
 <td align="right">8</td>
-<td align="right">5.058128</td>
-<td align="right">265.78719</td>
-<td align="right">3.922301</td>
-<td align="right">206.10337</td>
-<td align="right">5.515998</td>
-<td align="right">289.84664</td>
-<td align="right">6.763391</td>
-<td align="right">355.39289</td>
-<td align="right">8.091516</td>
-<td align="right">425.18128</td>
+<td align="right">5.0767287</td>
+<td align="right">261.45539</td>
+<td align="right">3.950910</td>
+<td align="right">203.47487</td>
+<td align="right">5.511763</td>
+<td align="right">283.85999</td>
+<td align="right">6.748949</td>
+<td align="right">347.57599</td>
+<td align="right">8.059656</td>
+<td align="right">415.07840</td>
 </tr>
 <tr class="odd">
 <td align="right">9</td>
-<td align="right">5.066630</td>
-<td align="right">266.23391</td>
-<td align="right">3.833853</td>
-<td align="right">201.45574</td>
-<td align="right">5.428872</td>
-<td align="right">285.26850</td>
-<td align="right">6.774748</td>
-<td align="right">355.98962</td>
-<td align="right">8.216443</td>
-<td align="right">431.74575</td>
+<td align="right">5.0682070</td>
+<td align="right">261.01652</td>
+<td align="right">3.843176</td>
+<td align="right">197.92649</td>
+<td align="right">5.421635</td>
+<td align="right">279.21831</td>
+<td align="right">6.762073</td>
+<td align="right">348.25189</td>
+<td align="right">8.148284</td>
+<td align="right">419.64282</td>
 </tr>
 <tr class="even">
 <td align="right">10</td>
-<td align="right">5.404746</td>
-<td align="right">284.00074</td>
-<td align="right">4.171043</td>
-<td align="right">219.17391</td>
-<td align="right">5.837202</td>
-<td align="right">306.72481</td>
-<td align="right">7.198113</td>
-<td align="right">378.23599</td>
-<td align="right">8.589687</td>
-<td align="right">451.35840</td>
+<td align="right">5.4048290</td>
+<td align="right">278.35281</td>
+<td align="right">4.151729</td>
+<td align="right">213.81719</td>
+<td align="right">5.811076</td>
+<td align="right">299.27484</td>
+<td align="right">7.202027</td>
+<td align="right">370.90986</td>
+<td align="right">8.548593</td>
+<td align="right">440.25906</td>
 </tr>
 <tr class="odd">
 <td align="right">11</td>
-<td align="right">3.431731</td>
-<td align="right">180.32565</td>
-<td align="right">2.467208</td>
-<td align="right">129.64326</td>
-<td align="right">3.607122</td>
-<td align="right">189.54183</td>
-<td align="right">4.705185</td>
-<td align="right">247.24125</td>
-<td align="right">6.007228</td>
-<td align="right">315.65910</td>
+<td align="right">3.4116075</td>
+<td align="right">175.70038</td>
+<td align="right">2.485225</td>
+<td align="right">127.99099</td>
+<td align="right">3.561895</td>
+<td align="right">183.44028</td>
+<td align="right">4.634316</td>
+<td align="right">238.67079</td>
+<td align="right">5.953506</td>
+<td align="right">306.61011</td>
 </tr>
 <tr class="even">
 <td align="right">12</td>
-<td align="right">2.912464</td>
-<td align="right">153.03996</td>
-<td align="right">2.119237</td>
-<td align="right">111.35860</td>
-<td align="right">3.114049</td>
-<td align="right">163.63251</td>
-<td align="right">4.090511</td>
-<td align="right">214.94225</td>
-<td align="right">5.073144</td>
-<td align="right">266.57620</td>
+<td align="right">2.8508239</td>
+<td align="right">146.81960</td>
+<td align="right">2.097721</td>
+<td align="right">108.03421</td>
+<td align="right">3.033682</td>
+<td align="right">156.23694</td>
+<td align="right">3.983693</td>
+<td align="right">205.16319</td>
+<td align="right">4.961400</td>
+<td align="right">255.51586</td>
 </tr>
 </tbody>
 </table>
 <p>Cultivars 6 and 7 seem to show lower RMSE and RRMSE especially on
 mean of RHEAS ensemble yield forecasts. These cultivars corresponds to
 the following names. So cultivar 6 (DKC8033) seem to be give better
-generaliation of yields.</p>
+generaliation of yields both in Malawi and Zambia.</p>
 <table>
 <thead>
 <tr class="header">

@@ -20,7 +20,6 @@ This site presents visualization of RHEAS maize yield forecasts.
 
 ### Forecast
 
-
 Maize yield forecast have been done for the following countries using [RHEAS DSSAT](https://doi.org/10.1371/journal.pone.0176506) coupled model. The yield forecast have been done for the following countries:
 
 1. [Zambia RHEAS Forecast](zambia/outlook.html).

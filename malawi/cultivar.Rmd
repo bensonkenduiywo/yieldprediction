@@ -94,7 +94,8 @@ names(rh_m)[4] <- "gwadmean"
 rh <- rh_q
 rh$gwadmean <- rh_m$gwadmean
 names(rh)[1] <- "District"
-dff <- merge(ref,rh, by=c("District", "Year"))
+ref.agg <-aggregate(yield_MT_ha~District+Year, data=ref, FUN = mean, na.rm=T)
+dff <- merge(ref.agg,rh, by=c("District", "Year"))
 ```
 
 
