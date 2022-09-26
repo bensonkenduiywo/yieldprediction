@@ -27,7 +27,7 @@ Load Zambia's ministry of agriculture maize forecasts data as reference.
 rm(list = ls(all=TRUE))
 unlink(".RData")
 root <- "D:/RCMRD/Data/Yields/"
-r.file <- paste0(root, "Reference/Zambia_District _Maize_Forecasting_2011_2022.csv")
+r.file <- paste0(root, "Reference/Zambia/MOA/Zambia_District _Maize_Forecasting_2011_2022.csv")
 ```
 
 
