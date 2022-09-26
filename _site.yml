@@ -22,6 +22,8 @@ navbar:
           href: rwanda/outlook.html
         - text: "Cultivar Selection: Zambia"
           href: zambia/cultivar.html
+        - text: "Selected cultivar: Zambia"
+          href: zambia/cultivar.html
         - text: "Cultivar Selection: Malawi"
           href: malawi/cultivar.html
   right:
