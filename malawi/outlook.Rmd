@@ -45,7 +45,7 @@ ref <- aggregate(yield_MT_ha~District+Year, data=ref, FUN=mean, na.rm=T)
 Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
 
 ```{r rh1, echo=FALSE, message=F}
-tt <- read.csv(paste0(root, "RHEAS/malawi_tamsat_dssatTable_2001_2022.csv"), stringsAsFactors =  FALSE)
+tt <- read.csv(paste0(root, "RHEAS/malawi_chirps_dssatTable_2001_2022.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
