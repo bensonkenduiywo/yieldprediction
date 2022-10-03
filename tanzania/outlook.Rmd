@@ -95,75 +95,36 @@ c[!c %in% sort(unique(rh$Region))]
 ```{r v3, echo=F, message=F}
 year <- 2022
 temp <- rh[, c("Region", "date", "Season", "gwad")]
-tza <-  merge(tza[,"Region"], rh[rh$date==year,], by = "Region", duplicateGeoms=TRUE)
-path <- "D:/RCMRD/Code/yieldprediction"
+temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = "gwad",direction = "wide")
+tza <-  merge(tza[,"Region"], temp[temp$date==year,], by = "Region", duplicateGeoms=TRUE)
+#path <- "D:/RCMRD/Code/yieldprediction"
 #shapefile(tza[,c("Region", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/tanzania/tanzania_Maize_Forecasts.shp"),overwrite=T)
 
 ```
 
 
-### First Season (OND)
+### Map of yields
 
-Visualize RHEAS predicted yields spatially for *season 1*. *NOTE: Ignore yields over the lake area*.
+Visualize RHEAS predicted yields spatially for *all seasons*. 
 
 ```{r v4, echo=F, message=F}
 library(tmap)
 library(mapview)
-tza.p <- subset(tza, Season=="OND")
 tmap_mode("view")
-map_a <- tm_shape(tza.p, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
+map_a <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
+  tm_polygons(col=c("gwad.OND", "gwad.MAM", "gwad.LR"),  n=5, title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)")) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
 map_a
 
-```
 
-
-### Second Season (MAM)
-
-Now lets how  *season 2* looks spatially
-
-```{r v5, echo=F , message=F}
-library(tmap)
-library(mapview)
-tza.1  <- tza
-tza.1 <- subset(tza.1, date==year & Season=="MAM")
-tmap_mode("view")
-map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
-  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
-  #tm_text("District", size = 0.75)+
-  tm_layout(title.size =5, panel.label.size=6)+
-  tm_format("World")
-map_b
 
 ```
 
 
-### Second Season (LR)
-
-Now lets see how  *season 3* looks spatially
-
-```{r v6, echo=F , message=F}
-library(tmap)
-library(mapview)
-tza.1  <- tza
-tza.1 <- subset(tza.1, date==year & Season=="LR")
-tmap_mode("view")
-map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
-  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
-  #tm_text("District", size = 0.75)+
-  tm_layout(title.size =5, panel.label.size=6)+
-  tm_format("World")
-map_b
-
-```
-
-## Annual Seasonal Trends
+### Annual Seasonal Trends
 
 Visualize trends for the last 15 years.
  
