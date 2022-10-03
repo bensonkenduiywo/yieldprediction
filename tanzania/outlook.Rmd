@@ -55,11 +55,11 @@ RH_metrics <- function(rh, sStart, sEnd, season){
   return(rh)
 }
 
-rh1 <- RH_metrics(tt, sStart ="10", sEnd = "02", "OND")
-rh2 <- RH_metrics(tt, sStart ="02", sEnd = "08", "MAM")
-rh3 <- RH_metrics(tt, sStart ="11", sEnd = "04", "LR")
+rh1 <- RH_metrics(tt, sStart ="10", sEnd = "04", "OND")
+rh2 <- RH_metrics(tt, sStart ="02", sEnd = "09", "MAM")
+#rh3 <- RH_metrics(tt, sStart ="11", sEnd = "04", "LR")
 
-rh <- do.call(rbind, list(rh1,rh2,rh3))
+rh <- do.call(rbind, list(rh1, rh2))
 
 ```
 
@@ -141,24 +141,6 @@ map_b
 
 ```
 
-
-### Third Season (Nov--April)
-
-Now lets how  *season 3* looks spatially
-
-```{r v6, echo=F , message=F}
-tza.1  <- tza
-tza.1 <- subset(tza.1, date==year & Season=="LR")
-tmap_mode("view")
-map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per District") +
-  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
-  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
-  #tm_text("District", size = 0.75)+
-  tm_layout(title.size =5, panel.label.size=6)+
-  tm_format("World")
-map_b
-
-```
 
 ## Annual Seasonal Trends
 
