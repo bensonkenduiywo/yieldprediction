@@ -55,11 +55,11 @@ RH_metrics <- function(rh, sStart, sEnd, season){
   return(rh)
 }
 
-rh1 <- RH_metrics(tt, sStart ="10", sEnd = "04", "OND")
+rh1 <- RH_metrics(tt, sStart ="10", sEnd = "02", "OND")
 rh2 <- RH_metrics(tt, sStart ="02", sEnd = "09", "MAM")
-#rh3 <- RH_metrics(tt, sStart ="11", sEnd = "04", "LR")
+rh3 <- RH_metrics(tt, sStart ="11", sEnd = "04", "LR")
 
-rh <- do.call(rbind, list(rh1, rh2))
+rh <- do.call(rbind, list(rh1, rh2, rh3))
 
 ```
 
@@ -94,6 +94,7 @@ c[!c %in% sort(unique(rh$Region))]
  
 ```{r v3, echo=F, message=F}
 year <- 2022
+temp <- rh[, c("Region", "date", "Season", "gwad")]
 tza <-  merge(tza[,"Region"], rh[rh$date==year,], by = "Region", duplicateGeoms=TRUE)
 path <- "D:/RCMRD/Code/yieldprediction"
 #shapefile(tza[,c("Region", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/tanzania/tanzania_Maize_Forecasts.shp"),overwrite=T)
@@ -131,7 +132,7 @@ library(mapview)
 tza.1  <- tza
 tza.1 <- subset(tza.1, date==year & Season=="MAM")
 tmap_mode("view")
-map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per District") +
+map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per Region") +
   tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
@@ -142,13 +143,33 @@ map_b
 ```
 
 
+### Second Season (LR)
+
+Now lets see how  *season 3* looks spatially
+
+```{r v6, echo=F , message=F}
+library(tmap)
+library(mapview)
+tza.1  <- tza
+tza.1 <- subset(tza.1, date==year & Season=="LR")
+tmap_mode("view")
+map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per Region") +
+  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_b
+
+```
+
 ## Annual Seasonal Trends
 
-Visualize trends for the last 5 years.
+Visualize trends for the last 15 years.
  
 ```{r bb1, echo=FALSE}
 library(ggplot2)
-temp <- rh[rh$date > 2009,]
+temp <- rh[rh$date > 2007,]
 p <- ggplot(temp, aes(x = date, y = gwad))
 
 p <- p + geom_boxplot(
