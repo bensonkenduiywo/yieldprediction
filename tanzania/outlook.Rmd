@@ -40,9 +40,10 @@ tt$Region <- toupper(tt$Region)
 
 Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
 
-We assume two maize growing seasons in Tanzania:
-1) Season 1: Short Rain Short Dry (SRSD) October -- February.
-2) Season 2: Long Rain Long Dry Season March -- September. 
+We assume three maize growing seasons in Tanzania:
+1) Season 1: OND (SRSD) October -- February.
+2) Season 2: MAM March -- September. 
+3) Season 3: Long Rain (LR) November -- April 
 
 So we will aggregate the metrics and yield forecast per district with this condition using the function `RH_metrics`.
 
@@ -54,9 +55,11 @@ RH_metrics <- function(rh, sStart, sEnd, season){
   return(rh)
 }
 
-rh1 <- RH_metrics(tt, sStart ="10", sEnd = "02", "SRSD")
-rh2 <- RH_metrics(tt, sStart ="03", sEnd = "09", "LRLD")
-rh <- rbind(rh1,rh2)
+rh1 <- RH_metrics(tt, sStart ="10", sEnd = "02", "OND")
+rh2 <- RH_metrics(tt, sStart ="02", sEnd = "08", "MAM")
+rh3 <- RH_metrics(tt, sStart ="11", sEnd = "04", "LR")
+
+rh <- do.call(rbind, list(rh1,rh2,rh3))
 
 ```
 
@@ -80,11 +83,11 @@ tza$Region <- toupper(tza$Region)
 ```
 
 
-Check and format District names to be consistent in both the RHEAS and administrative boundaries.
+Check and format Region names to be consistent in both the RHEAS and administrative boundaries. Here we check which regions are mission from RHEAS predictions.
 
 ```{r v2, echo=F, message=F}
-c <- sort(unique(rh$Region))
-c[!c %in% sort(unique(tza$Region))]
+c <- sort(unique(tza$Region))
+c[!c %in% sort(unique(rh$Region))]
 ```
 
  Merge RHEAS and Admin data.
@@ -98,18 +101,17 @@ path <- "D:/RCMRD/Code/yieldprediction"
 ```
 
 
-### First Season
+### First Season (OND)
 
 Visualize RHEAS predicted yields spatially for *season 1*. *NOTE: Ignore yields over the lake area*.
 
 ```{r v4, echo=F, message=F}
 library(tmap)
 library(mapview)
-tza.p  <- tza
-tza.p <- subset(tza.p, Season=="SRSD")
+tza.p <- subset(tza, Season=="OND")
 tmap_mode("view")
 map_a <- tm_shape(tza.p, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(2023, " Yield (MT/ha)"), "Leaf Area Index")) +
+  tm_polygons(col=c("gwad", "lai"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index")) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
@@ -118,28 +120,45 @@ map_a
 
 ```
 
-The first season seems to do well on average.
 
-### Second Season
+### Second Season (MAM)
 
 Now lets how  *season 2* looks spatially
 
 ```{r v5, echo=F , message=F}
 library(tmap)
 library(mapview)
-tza.p  <- tza
-tza.p <- subset(tza.p, date==year & Season=="LRLD")
+tza.1  <- tza
+tza.1 <- subset(tza.1, date==year & Season=="MAM")
 tmap_mode("view")
-map_a <- tm_shape(tza.p, name="Average yield (MT/ha) per District") +
+map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per District") +
   tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
   tm_facets(sync = TRUE, ncol = 2, nrow=1) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
-map_a
+map_b
 
 ```
 
+
+### Third Season (Nov--April)
+
+Now lets how  *season 3* looks spatially
+
+```{r v6, echo=F , message=F}
+tza.1  <- tza
+tza.1 <- subset(tza.1, date==year & Season=="LR")
+tmap_mode("view")
+map_b <- tm_shape(tza.1, name="Average yield (MT/ha) per District") +
+  tm_polygons(col=c("gwad", "lai"),  n=5,  title=c(paste(year, " Yield (MT/ha)"), "Leaf Area Index"),n=5) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  #tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_b
+
+```
 
 ## Annual Seasonal Trends
 
@@ -147,14 +166,14 @@ Visualize trends for the last 5 years.
  
 ```{r bb1, echo=FALSE}
 library(ggplot2)
-temp <- rh[rh$date > 2000,]
+temp <- rh[rh$date > 2009,]
 p <- ggplot(temp, aes(x = date, y = gwad))
 
 p <- p + geom_boxplot(
   aes(fill = Season),
   position = position_dodge(0.9) 
   ) +
-  scale_fill_manual(values = c("#999999", "#E69F00"))+
+  scale_fill_manual(values = c("#999999", "#E69F00", "green"))+
   ggtitle("Annual Seasonal  Maize Yield")+
   labs(y = "Yield (MT/ha)", x = "Year")
 p
