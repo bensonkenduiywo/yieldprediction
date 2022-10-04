@@ -41,6 +41,7 @@ tt$Region <- toupper(tt$Region)
 Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
 
 We assume three maize growing seasons in Tanzania:
+
 1) Season 1: OND (SRSD) October -- February.
 2) Season 2: MAM March -- September. 
 3) Season 3: Long Rain (LR) November -- April 
