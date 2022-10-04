@@ -112,7 +112,7 @@ library(tmap)
 library(mapview)
 tmap_mode("view")
 map_a <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI")) +
+  tm_fill(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI"), breaks = seq(0.5,4,0.5)) +
   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
@@ -126,7 +126,7 @@ map_a
 
 ### Annual Seasonal Trends
 
-Visualize trends for the last 15 years.
+Visualize maize yield trends for the last 15 years.
  
 ```{r bb1, echo=FALSE}
 library(ggplot2)
@@ -143,4 +143,13 @@ p <- p + geom_boxplot(
 p
 
 ```
+ 
+ 
+ Visualize yields per region between 2000-2022.
+ 
+```{r bb2}
+par(mai=c(1,2,1,1))
+boxplot(rh$gwad ~ rh$Region, las=1, cex.axis=.75, horizontal=TRUE, xlab="Yield (MT/ha)", ylab="", cex=.5, col=rainbow(length(unique(rh$Region))))
+```
+ 
  
