@@ -27,7 +27,7 @@ Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain
 rm(list = ls(all=TRUE))
 unlink(".RData")
 root <- "D:/RCMRD/Data/Yields/"
-tt <- read.csv(paste0(root, "RHEAS/tanzania_tamsat_25km_dssatTable_2000_2022_100kg.csv"), stringsAsFactors =  FALSE)
+tt <- read.csv(paste0(root, "RHEAS/tanzania_tamsat_25km_regions_dssatTable_2000_2022_100kg.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
@@ -94,8 +94,8 @@ c[!c %in% sort(unique(rh$Region))]
  
 ```{r v3, echo=F, message=F}
 year <- 2022
-temp <- rh[, c("Region", "date", "Season", "gwad")]
-temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = "gwad",direction = "wide")
+temp <- rh[, c("Region", "date", "Season", "gwad", "lai")]
+temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = c("gwad", "lai"),direction = "wide")
 tza <-  merge(tza[,"Region"], temp[temp$date==year,], by = "Region", duplicateGeoms=TRUE)
 #path <- "D:/RCMRD/Code/yieldprediction"
 #shapefile(tza[,c("Region", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/tanzania/tanzania_Maize_Forecasts.shp"),overwrite=T)
@@ -112,8 +112,8 @@ library(tmap)
 library(mapview)
 tmap_mode("view")
 map_a <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
-  tm_polygons(col=c("gwad.OND", "gwad.MAM", "gwad.LR"),  n=5, title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)")) +
-  tm_facets(sync = TRUE, ncol = 2, nrow=1) +
+  tm_polygons(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI")) +
+  tm_facets(sync = TRUE, ncol = 2, nrow=2) +
   #tm_text("District", size = 0.75)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
