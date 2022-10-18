@@ -147,8 +147,8 @@ tmap_mode("view")
 
 #lf <- tmap_leaflet(map_a)
 #mapshot(map_a, file = paste0(getwd(), "/TZ_Yields_2022.png"), remove_controls = c("homeButton", "layersControl"))
-tmap_save(map_a, filename="TZ_Yields_2022.png")
-
+tmap_save(map_a, scale =1.6, dpi= 300, filename="TZ_Yields_2022.png")
+##Other plotting options see http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS3_MakingMaps_part1_mappingVectorData.html#multiple-layers-with-spplot
 ```
 
 
@@ -173,12 +173,23 @@ p <- p + geom_boxplot(
 ```
  
  
- Visualize yields per region between 2000-2022 for OND season only.
+Visualize yields per region between 2000-2022 for OND season only.
  
-```{r bb2}
-temp <- rh[rh$Season=="OND",]
-par(mai=c(1,2.3,1,1))
-boxplot(temp$gwad ~ temp$Region, las=1, cex.axis=.75, horizontal=TRUE, xlab="Yield (MT/ha)", ylab="", cex=.5, col=rainbow(length(unique(temp$Region))))
+```{r bb2, message=F, echo=F}
+#temp <- rh[rh$Season=="OND",]
+# par(mai=c(1,2.3,1,1))
+# boxplot(temp$gwad ~ temp$Region, las=1, cex.axis=.75, horizontal=TRUE, xlab="Yield (MT/ha)", ylab="", cex=.5, col=rainbow(length(unique(temp$Region))))
 ```
  
  
+## Total production
+
+Total production (MT) can be estimated by multiplying unit production estimates (MT/ha) from RHEAS by area under maize in each district. 
+Statistics for area under maize in different districts in Tanzania collected through National Bureau  of Statistics agricultural census survey of 2019/2020 is adopted.
+ 
+```{r p1, message=F, echo=F, warning=F}
+library(readstata13)
+pa <- read.dta13(paste0(root, "Reference/Tanzania/NBS_Maize_2019_20 Agric Census/Maize_Shorty_Rainy_Season.dta"), convert.factors=T, generate.factors=T)
+pb <- read.dta13(paste0(root, "Reference/Tanzania/NBS_Maize_2019_20 Agric Census/Maize_Long_Rainy_Season.dta"), convert.factors=T, generate.factors=T)
+```
+
