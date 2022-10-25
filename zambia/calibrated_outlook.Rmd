@@ -86,7 +86,7 @@ ref.agg <- aggregate(ref[,"yield_MT_ha", drop=FALSE], ref[, c("District","Year")
 Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
 
 ```{r rh1, echo=FALSE, warning=FALSE, message=FALSE}
-tt <- read.csv(paste0(root, "RHEAS/zambia_tamsat_dssatTable_2001_2022.csv"), stringsAsFactors =  FALSE)
+tt <- read.csv(paste0(root, "RHEAS/zambia_tamsat_25km_districts_dssatTable_2000_2022_50kg.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
@@ -96,7 +96,7 @@ tt$District[tt$District=="SHANGOMBO"] <- "SHANG'OMBO"
 ```
 
 
-## Production forecast and RHEAS metrics aggregagation
+## Unit Production forecast and RHEAS metrics aggregagation
 
 Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
 
@@ -121,59 +121,6 @@ rh$gwad <- rh$gwad/1000
 ```
 
 
-## Visualization
-
-Add shapefile for visualization.
-
-```{r, v1, echo=FALSE, warning=FALSE, message=FALSE}
-library(raster)
-filename <- "D:/Adm data/Zambia/2010 Districts/district_74.shp"
-zmb <- shapefile(filename)
-names(zmb)[3] <- "District"
-zmb$District <- toupper(zmb$District)
-```
-
-
-Check and format District names to be consistent in both the RHEAS and administrative boundaries.
-
-```{r v2, echo=FALSE, warning=FALSE, message=FALSE}
-#RHEAS
-c <- sort(unique(rh$District))
-c[!c %in% sort(unique(zmb$District))]
-#MoA Forecasts
-c <- sort(unique(ref$District))
-c[!c %in% sort(unique(zmb$District))]
-```
-
-Merge RHEAS and Admin data.
- 
-```{r v3, echo=FALSE, warning=FALSE, message=FALSE}
-#zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
-zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
-path <- "D:/RCMRD/Code/yieldprediction"
-shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
-
-```
-
-
-Visualize RHEAS predicted yields spatially.
-
-```{r v4, echo=FALSE, warning=FALSE, message=FALSE}
-library(tmap)
-library(mapview)
-tmap_mode("view") #breaks = seq(2,4.1,0.1)
-map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
-  tm_polygons("gwad", id="gwad",  title="Maize yield (MT/ha) 2022") +
-  tm_text("District", size = 0.75)+
-  tm_layout(title.size =5, panel.label.size=6)+
-  tm_format("World")
-map_a
-
-#lf <- tmap_leaflet(map_a)
-#mapshot(lf, file = "D:/RCMRD/Presentations/ISPRS_2022/Yields_2022_MODIS.png")
-
-```
-
 
 ## Validation
 
@@ -185,7 +132,10 @@ Merge the MoA forecasts with RHEAS ones by year and District.
 x <- rh
 names(x)[2] <- "Year"
 y <- ref
+
 dff <-  merge(x, y, by = c("District", "Year"))
+
+#cat("Pearson correlation between RHEAS and MOA yields ", cor(dff$wsgd, dff$yield_MT_ha, method = "pearson"))
 
 ```
 
@@ -243,3 +193,88 @@ cat("RRMSE ", rrmse(dff$gwad, dff$yield_MT_ha), "\n")
 ```
 
 According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), the performance of the model is excellent when RRMSE < 10%; good if 10\% < RRMSE < 20\%; fair if 20\% < RRMSE < 30\%; and poor if RRMSE ≥ 30\%.
+
+
+## Total production
+
+Total production _P_ is estimated as a product of unit production _u_ (in MT/ha) and area under maize _a_ per district, that is,
+$$
+
+p = u \times a.
+$$
+
+```{r p1, echo=FALSE, warning=FALSE, message=FALSE}
+library(readxl)
+a <- read_excel("D:/RCMRD/Data/Maps/Zambia/ZMB_Maize_Area_Stats_s1_s2.xls", col_names = TRUE)
+names(a)[2] <- "District"
+a$District <- toupper(a$District)
+cel_area <- (10*10)/10000 #Sentinel spatial resolution
+a$Area_ha <- a$COUNT * cel_area 
+
+```
+
+Merge maize area statistics per district with unit production forecast and compute production in MT/ha.
+
+```{r p2}
+rh <- merge(rh, a[,c("District","Area_ha")], by="District")
+rh$Production <- rh$gwad * rh$Area_ha
+```
+
+
+## Visualization
+
+Add shapefile for visualization.
+
+```{r, v1, echo=FALSE, warning=FALSE, message=FALSE}
+library(raster)
+filename <- "D:/Adm data/Zambia/2010 Districts/district_74.shp"
+zmb <- shapefile(filename)
+names(zmb)[3] <- "District"
+zmb$District <- toupper(zmb$District)
+zmb$PROVINCE <- toupper(zmb$PROVINCE)
+```
+
+
+Check and format District names to be consistent in both the RHEAS and administrative boundaries.
+
+```{r v2, echo=FALSE, warning=FALSE, message=FALSE}
+#RHEAS
+c <- sort(unique(rh$District))
+c[!c %in% sort(unique(zmb$District))]
+#MoA Forecasts
+c <- sort(unique(ref$District))
+c[!c %in% sort(unique(zmb$District))]
+```
+
+Merge RHEAS and Admin data.
+ 
+```{r v3, echo=FALSE, warning=FALSE, message=FALSE}
+#zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
+year <- 2022
+zmb <-  merge(zmb[,c("District", "PROVINCE")], rh[rh$date=="2022",], by = "District")
+path <- "D:/RCMRD/Code/yieldprediction"
+shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
+
+boxplot(Production/1000~PROVINCE, data=zmb@data, col=rainbow(length(unique(zmb$PROVINCE))), xlab="Provinces", ylab = "Production in thousands of MT", main="2022 PRODUCTION FORECAST.", cex.axis=0.8) #horizontal = T, las=1
+
+```
+
+
+Visualize RHEAS predicted yields spatially.
+
+```{r v4, echo=FALSE, warning=FALSE, message=FALSE}
+library(tmap)
+library(mapview)
+tmap_mode("view") #breaks = seq(2,4.1,0.1)
+map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
+  tm_polygons(col=c("gwad", "Production"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Production (MT)"), textNA = "No data") +
+  tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_a
+
+#lf <- tmap_leaflet(map_a)
+#mapshot(lf, file = "D:/RCMRD/Presentations/ISPRS_2022/Yields_2022_MODIS.png")
+
+```
+
