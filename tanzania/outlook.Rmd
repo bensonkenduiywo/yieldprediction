@@ -120,8 +120,8 @@ c[!c %in% sort(unique(rh$Region))]
  
 ```{r v3, echo=F, message=F}
 year <- 2022
-temp <- rh[, c("Region", "date", "gwad", "lai", "Season")]
-temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = c("gwad", "lai"),direction = "wide")
+temp <- rh[, c("Region", "date", "gwad", "lai", "wsgd", "Season")]
+temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = c("gwad", "lai", "wsgd"),direction = "wide")
 tza <-  merge(tza[,c("Region", 'NAME_1')], temp[temp$date==year,], by = "Region", duplicateGeoms=TRUE)
 #path <- "D:/RCMRD/Code/yieldprediction"
 #shapefile(tza[,c("Region", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/tanzania/tanzania_Maize_Forecasts.shp"),overwrite=T)
@@ -138,7 +138,7 @@ library(tmap)
 library(mapview)
 tmap_mode("view")
  map_a <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
-  tm_fill(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI"), breaks = seq(0.3,4.5,1)) +
+  tm_fill(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI"), textNA = "No data", breaks = seq(0.3,4.5,1)) +
    tm_facets(sync = TRUE, ncol = 2, nrow=2) +
 #   #tm_text("District", size = 0.75)+
    tm_layout(title.size =5, panel.label.size=6)+
@@ -151,6 +151,40 @@ tmap_save(map_a, scale =1.6, dpi= 300, filename="TZ_Yields_2022.png")
 ##Other plotting options see http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS3_MakingMaps_part1_mappingVectorData.html#multiple-layers-with-spplot
 ```
 
+Analysis of the *LR*.
+
+```{r lr1}
+map_lr <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
+  tm_fill(col=c("gwad.LR", "lai.LR", "wsgd.LR"),   title=c("LR Yield (MT/ha)", "LR LAI", "LR water stress", "LR LAI"), textNA = "No data", breaks=c(-Inf, seq(0, 5, by=1), Inf),style="fixed") +
+   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
+#   #tm_text("District", size = 0.75)+
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+map_lr
+tmap_save(map_lr, scale =1.6, dpi= 300, filename="TZ_unimodal_Yields_2022.png")
+
+p1 <- tm_shape(tza, name="Average yield (MT/ha) per District") +
+  tm_fill("gwad.LR", title="LR Yield (MT/ha)", textNA = "No data", breaks=c(-Inf, seq(1, 4, by=1), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+p2 <- tm_shape(tza, name="Average LAI per District") +
+  tm_fill("lai.LR", title="LR LAI", textNA = "No data", breaks=c(-Inf, seq(1, 2, by=0.25), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+
+p3 <- tm_shape(tza, name="Average water stress per District") +
+  tm_fill("wsgd.LR", title="LR water stress", textNA = "No data", breaks=c(-Inf, seq(0, 1, by=0.25), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+#current.mode <- tmap_mode("plot")
+plots <- tmap_arrange(p1, p2, p3, ncol =2)
+plots
+#tmap_mode(current.mode)
+
+```
 
 ### Annual Seasonal Trends
 
