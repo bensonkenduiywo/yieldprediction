@@ -21,7 +21,7 @@ opts_knit$set(global.par = TRUE)
 
 ## Reference data
 
-Zambia's Ministry of Agriculture (MoA) maize forecasts.
+Zambia's Ministry of Agriculture (MoA) maize census survey reference data.
 
 ```{r ref1, echo=FALSE, warning=FALSE, message=FALSE}
 rm(list = ls(all=TRUE))
@@ -181,15 +181,24 @@ zmb <-  merge(zmb[,c("District", "PROVINCE")], rh[rh$date=="2022",], by = "Distr
 path <- "D:/RCMRD/Code/yieldprediction"
 shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
 
-production <- aggregate(Production~PROVINCE, data=zmb@data, sum, na.rm=T)
+production <- aggregate(zmb@data[, c("Area_ha", "Production"), drop =FALSE], zmb@data[, "PROVINCE", drop =FALSE], sum, na.rm=T)
+temp <-  aggregate(zmb@data[,  "gwad", drop =FALSE], zmb@data[, "PROVINCE", drop =FALSE], mean, na.rm=T)
+temp$gwad <- round(temp$gwad, 2)
 
-knitr::kable(production, caption = "Zambia's provincial Maize preduction in (MT)")
+production <- merge(temp, production, by="PROVINCE")
+  
+names(production)[2] <- "UNIT PRODUCTION (MT/ha)"
+names(production)[3] <- "AREA (ha)"
+names(production)[4] <- "PRODUCTION (MT)"
+
+knitr::kable(production, align = 'c', caption = "Zambia's 2022 provincial Maize forecasts: Unit production (MT/ha), area under maize (ha), and total production (MT).")
 
 zmb$PROVINCE <- substr(zmb$PROVINCE, 1,4)
 boxplot(Production/1000~PROVINCE, data=zmb@data, col=rainbow(length(unique(zmb$PROVINCE))), xlab="Provinces", ylab = "Production in thousands of MT", main="2022 PRODUCTION FORECAST.", cex.axis=0.8) #horizontal = T, las=1
 
 ```
 
+The area under maize was estimated through remote sensing mapping.
 
 <!-- Visualize RHEAS predicted yields spatially. -->
 
@@ -197,9 +206,10 @@ boxplot(Production/1000~PROVINCE, data=zmb@data, col=rainbow(length(unique(zmb$P
 library(tmap)
 library(mapview)
 tmap_mode("view") #breaks = seq(2,4.1,0.1)
-map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
+map_a <- tm_shape(zmb, name="Maize Yield per District") +
   tm_polygons(col=c("gwad", "Production"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Production (MT)"), textNA = "No data") +
   tm_text("District", size = 0.75)+
+  tm_facets(sync = TRUE, ncol = 2)+
   tm_layout(title.size =5, panel.label.size=6)+
   tm_format("World")
 map_a
