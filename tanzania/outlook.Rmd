@@ -48,8 +48,8 @@ Maize unit production forecasts (Mt/ha) was done based on
 three maize growing seasons in Tanzania:
 
 1) Season 1: OND (SRSD) October -- February/March.
-2) Season 2: MAM March -- September. 
-3) Season 3: Long Rain (LR) November -- April/August 
+2) Season 2: MAM February/March -- August 
+3) Season 3: Long Rain (LR) November -- August 
 
 <!-- So we will aggregate the metrics and yield forecast per district with this condition using the function `RH_metrics`. -->
 
