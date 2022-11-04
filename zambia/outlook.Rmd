@@ -204,18 +204,21 @@ The area under maize was estimated through remote sensing mapping.
 
 ```{r v4, echo=FALSE, warning=FALSE, message=FALSE}
 library(tmap)
-library(mapview)
+library(plot)
 tmap_mode("view") #breaks = seq(2,4.1,0.1)
 map_a <- tm_shape(zmb, name="Maize Yield per District") +
   tm_polygons(col=c("gwad", "Production"),  n=5, title=c(paste(year, " Yield (MT/ha)"), "Production (MT)"), textNA = "No data") +
-  tm_text("District", size = 0.75)+
   tm_facets(sync = TRUE, ncol = 2)+
   tm_layout(title.size =5, panel.label.size=6)+
+  tm_legend(position = c("left", "top"))+ 
   tm_format("World")
-map_a
+#map_a
+tmap_mode("view")
+aa=qtm(zmb, fill = c("gwad", "Production"), fill.title=c("Yield (MT/ha)", "Production (MT)"), textNA = "No data")+
+  tm_facets(sync = TRUE, ncol = 2)
 
 #lf <- tmap_leaflet(map_a)
-#mapshot(lf, file = "D:/RCMRD/Presentations/ISPRS_2022/Yields_2022_MODIS.png")
-
+#mapshot(lf, file = "D:/RCMRD/Code/ZMB_Yields_2022.png")
+tmap_save(aa, scale =1.6, dpi= 300, filename="D:/RCMRD/Code/ZMB_Yields_2022.png")
 ```
 
