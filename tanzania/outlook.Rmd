@@ -134,34 +134,20 @@ tza2 <-  merge(tza[,c("Region", 'NAME_1')], temp[temp$date==year+1,], by = "Regi
 library(tmap)
 library(mapview)
 tmap_mode("view")
- map_a <- tm_shape(tza2, name="2023 OND Maize yield (MT/ha)") +
-  tm_fill(col= "gwad.OND_2023",   title="2023 OND Yield (MT/ha)", textNA = "No data", n=5) +
+
+tzac <-  merge(tza[,"Region"], temp[temp$date==year+1, c("gwad.OND_2023","Region")], by = "Region")
+tzac <-  merge(tzac, temp[temp$date==year, c("gwad.OND","gwad.MAM","gwad.LR","Region")], by = "Region")
+
+
+ map <- tm_shape(tzac, name="2023 OND Maize yield (MT/ha)") +
+  tm_fill(col= c("gwad.OND_2023", "gwad.OND", "gwad.MAM", "gwad.LR"),   title=c("2023 OND Yield (MT/ha)", "2022 OND Yield (MT/ha)", "2022 MAM Yield (MT/ha)", "2022 LR Yield (MT/ha)"), textNA = "No data", breaks = seq(0.4,4, 0.6)) +
    tm_facets(sync = TRUE, ncol = 2, nrow=2) +
    tm_layout(title.size =5, panel.label.size=6)+
    tm_format("World")
- 
- map_b <- tm_shape(tza1, name="2022 OND Maize yield (MT/ha)") +
-  tm_fill(col= "gwad.OND",   title="2022 OND Yield (MT/ha)", textNA = "No data", n=5) +
-   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
-   tm_layout(title.size =5, panel.label.size=6)+
-   tm_format("World")
+ map 
+ #tmap_arrange(map_a, map_b, map_c,map_d, ncol = 2, sync = T)
 
- map_c <- tm_shape(tza1, name="2022 MAM Maize yield (MT/ha)") +
-  tm_fill(col= "gwad.MAM",   title="2022 MAM Yield (MT/ha)", textNA = "No data", n=5) +
-   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
-   tm_layout(title.size =5, panel.label.size=6)+
-   tm_format("World")
- 
- map_d <- tm_shape(tza1, name="2022 LR Maize yield (MT/ha)") +
-  tm_fill(col= "gwad.LR",   title="2022 LR Yield (MT/ha)", textNA = "No data", n=5) +
-   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
-   tm_layout(title.size =5, panel.label.size=6)+
-   tm_format("World")
-
- tmap_arrange(map_a, map_b, map_c,map_d, ncol = 2, sync = T)
-
-
-#tmap_save(map_a, scale =1.6, dpi= 300, filename="TZ_Yields_2022.png")
+tmap_save(map, scale =1.6, dpi= 600, filename="D:/RCMRD/Code/TZA_Yields_2022.png")
 ##Other plotting options see http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS3_MakingMaps_part1_mappingVectorData.html#multiple-layers-with-spplot
 ```
 
