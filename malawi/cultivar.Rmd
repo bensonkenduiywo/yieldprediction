@@ -140,32 +140,79 @@ According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), 
 
 ### Compute validation measures
 
+Here validation measures are computed for each cultivar at district level based on historically observed maize yields. 
 
 ```{r v1}
 val <- data.frame()
-for(i in 1:length(unique(dff$cultivar))){
-  print(paste0("cultivar",i))
-  temp <- subset(dff, cultivar==paste0("cultivar",i))
-  rmse_m <- rmse(temp$gwadmean-temp$yield_MT_ha)
-  rrmse_m <- rrmse(temp$gwadmean, temp$yield_MT_ha)
-  rmse25 <- rmse(temp$gwad25-temp$yield_MT_ha)
-  rrmse25 <- rrmse(temp$gwad25, temp$yield_MT_ha)
-  rmse50 <- rmse(temp$gwad50-temp$yield_MT_ha)
-  rrmse50 <- rrmse(temp$gwad50, temp$yield_MT_ha)
-  rmse75 <- rmse(temp$gwad75-temp$yield_MT_ha)
-  rrmse75 <- rrmse(temp$gwad75, temp$yield_MT_ha)
-  rmse95 <- rmse(temp$gwad95-temp$yield_MT_ha)
-  rrmse95 <- rrmse(temp$gwad95, temp$yield_MT_ha)
-  output <- c(i, rmse_m, rrmse_m, rmse25, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
-  val <-  rbind(val, output)
+Cultivar <- sort(unique(dff$cultivar))
+dists <- sort(unique(dff$District))
+for(i in 1:length(Cultivar)){
+  for(j in 1:length(dists)){
+    #print(paste0("cultivar",i, " in ", dists[j]))
+    temp <- subset(dff, cultivar==paste0("cultivar",i) & District==dists[j])
+    rmse_m <- rmse(temp$gwadmean-temp$yield_MT_ha)
+    rrmse_m <- rrmse(temp$gwadmean, temp$yield_MT_ha)
+    rmse25 <- rmse(temp$gwad25-temp$yield_MT_ha)
+    rrmse25 <- rrmse(temp$gwad25, temp$yield_MT_ha)
+    rmse50 <- rmse(temp$gwad50-temp$yield_MT_ha)
+    rrmse50 <- rrmse(temp$gwad50, temp$yield_MT_ha)
+    rmse75 <- rmse(temp$gwad75-temp$yield_MT_ha)
+    rrmse75 <- rrmse(temp$gwad75, temp$yield_MT_ha)
+    rmse95 <- rmse(temp$gwad95-temp$yield_MT_ha)
+    rrmse95 <- rrmse(temp$gwad95, temp$yield_MT_ha)
+    output <- c(i, dists[j], rmse_m, rrmse_m, rmse25, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
+    val <-  rbind(val, output)
+  }
+  
 }
-colnames(val) <-c("Cultivar", "RMSE_mean", "RRMSE_mean", "RMSE25", "RRMSE25", "RMSE50", "RRMSE50", "RMSE75", "RRMSE75", "RMSE95", "RRMSE95")
 
-knitr::kable(val,caption = "Cultivar assessement based on ensemble mean, 25%. 50%, 75% and 95% percentiles respectively.")
+
+colnames(val) <-c("Cultivar", "District", "RMSE_mean", "RRMSE_mean", "RMSE25", "RRMSE25", "RMSE50", "RRMSE50", "RMSE75", "RRMSE75", "RMSE95", "RRMSE95")
+
+#knitr::kable(val,caption = "Cultivar assessement based on ensemble mean, 25%. 50%, 75% and 95% percentiles respectively.")
+```
+
+Find cultivars with least RMSE in each district.
+
+```{r v2}
+vals <- data.frame()
+for(i in 1:length(dists)){
+  temp <- subset(val, District==dists[i])
+  output <- c(temp$Cultivar[which.min(temp$RMSE_mean)], dists[i], min(temp$RMSE_mean))
+  vals <-  rbind(vals, output)
+}
+
+colnames(vals) <-c("Cultivar", "District", "RMSE_mean")
+vals$RMSE_mean <- as.numeric(vals$RMSE_mean)
+
+knitr::kable(vals, caption = "Cultivar assessement based on ensemble RMSE of average yields from RHEAS ensemble.")
+
+knitr::kable(sort(unique(vals$Cultivar)), caption = "Revelevant cultivars for Malawi")
 ```
 
 
-Cultivars 6 and 7 seem to show lower RMSE and RRMSE especially on mean of RHEAS ensemble yield forecasts. These cultivars corresponds to the following names. So cultivar 6 (DKC8033) seem to be give better generaliation of yields both in Malawi and Zambia.
+Visualize RMSE spatial distribution.
+
+
+```{r v3, echo=FALSE, warning=FALSE, message=FALSE}
+library(raster)
+filename <- "D:/Adm data/Malawi/gadm40_MWI_1.shp"
+mwi <- shapefile(filename)
+names(mwi)[4] <- "District"
+mwi$District <- toupper(mwi$District)
+mwi <-  merge(mwi[,"District"], vals, by = "District")
+library(tmap)
+library(mapview)
+tmap_mode("view")
+ map <- tm_shape(mwi, name="Prediction Error MT/ha") +
+  tm_fill("RMSE_mean", title="RMSE", breaks = c(0.1,0.4,0.8,1.2,1.6,1.8), textNA = "No data") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+ map 
+```
+
+
+Cultivars 4, 6 and 7 seem to show lower RMSE on mean of RHEAS ensemble yield forecasts. These cultivars corresponds to the following names. 
 
 | No. | Cultivar Name |
 | --- | ------------- |
