@@ -152,6 +152,8 @@ for(i in 1:length(Cultivar)){
     temp <- subset(dff, cultivar==paste0("cultivar",i) & District==dists[j])
     rmse_m <- rmse(temp$gwadmean-temp$yield_MT_ha)
     rrmse_m <- rrmse(temp$gwadmean, temp$yield_MT_ha)
+    pcor_m <- cor(temp$gwadmean, temp$yield_MT_ha, method = "pearson")
+    bias <- mean(temp$gwadmean-temp$yield_MT_ha)
     rmse25 <- rmse(temp$gwad25-temp$yield_MT_ha)
     rrmse25 <- rrmse(temp$gwad25, temp$yield_MT_ha)
     rmse50 <- rmse(temp$gwad50-temp$yield_MT_ha)
@@ -160,14 +162,14 @@ for(i in 1:length(Cultivar)){
     rrmse75 <- rrmse(temp$gwad75, temp$yield_MT_ha)
     rmse95 <- rmse(temp$gwad95-temp$yield_MT_ha)
     rrmse95 <- rrmse(temp$gwad95, temp$yield_MT_ha)
-    output <- c(i, dists[j], rmse_m, rrmse_m, rmse25, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
+    output <- c(i, dists[j], rmse_m, rrmse_m, pcor_m, rmse25, bias, rrmse25, rmse50, rrmse50, rmse75, rrmse75, rmse95, rrmse95)
     val <-  rbind(val, output)
   }
   
 }
 
 
-colnames(val) <-c("Cultivar", "District", "RMSE_mean", "RRMSE_mean", "RMSE25", "RRMSE25", "RMSE50", "RRMSE50", "RMSE75", "RRMSE75", "RMSE95", "RRMSE95")
+colnames(val) <-c("Cultivar", "District", "RMSE_mean", "RRMSE_mean", "pcor", "bias", "RMSE25", "RRMSE25", "RMSE50", "RRMSE50", "RMSE75", "RRMSE75", "RMSE95", "RRMSE95")
 
 #knitr::kable(val,caption = "Cultivar assessement based on ensemble mean, 25%. 50%, 75% and 95% percentiles respectively.")
 ```
@@ -177,10 +179,16 @@ Find cultivars with least RMSE in each district.
 ```{r v2}
 vals <- data.frame()
 for(i in 1:length(dists)){
+  #Flter out district
   temp <- subset(val, District==dists[i])
+  #Order dataframe in decreasing correlation value
+  index <- order(temp$pcor, decreasing = T)
+  #pick dataframe with first four highest correlation
+  temp <- temp[index[1:4],]
   output <- c(temp$Cultivar[which.min(temp$RMSE_mean)], dists[i], min(temp$RMSE_mean))
   vals <-  rbind(vals, output)
 }
+
 
 colnames(vals) <-c("Cultivar", "District", "RMSE_mean")
 vals$RMSE_mean <- as.numeric(vals$RMSE_mean)
