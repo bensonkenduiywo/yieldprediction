@@ -53,8 +53,9 @@ dev.off()
 ## VIC Spatial-Temporal metrics
 #==============================================================================
 v_t <- readRDS(paste0(root, "metrics/zmb_tamsat_vic_metrics_v1.rds"))
+v_t$District <- toupper(v_t$District)
 v_c <- readRDS(paste0(root, "metrics/zmb_chirps_vic_metrics_v1.rds"))
-
+v_c$District <- toupper(v_c$District)
 #==============================================================================
 ## MODIS/RS Spatial-temporal metrics
 #==============================================================================
@@ -216,10 +217,11 @@ seasonMean <- function(year, df, seasons=1:2) {
   do.call(rbind, res)  
 }
 
-years <- 2012:2022
+years <- 2011:2022
 temp <- lapply(years, seasonMean, modis, seasons=2)
 rs <- do.call(rbind, temp)
 rs <- rs[!rs$District=="Counties",]
+rs$District <- toupper(rs$District)
 
 #x11()
 #boxplot(evi~year, data=rs)
@@ -227,27 +229,15 @@ rs <- rs[!rs$District=="Counties",]
 #==============================================================================
 ## DSSAT Spatial-temporal metrics
 #==============================================================================
-
-
-```{r dssat1, echo=FALSE, warning=FALSE, message=FALSE}
-path <- "/home/servir/RHEAS/yields/"
-tt <- read.csv(paste0(path, "zambia_chirps_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+path <- paste0(root, "RHEAS/")
+tt <- read.csv(paste0(path, "zambia_tamsat_25km_districts_dssatTable_2010_2022_100kg.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
 names(tt)[3] <- "District"
-tt$District[tt$District=="CHIENGI"] <- "CHIENGE"
-tt$District[tt$District=="SHANGOMBO"] <- "SHANG'OMBO"
-```
-
 
 ### DSSAT Spatial-Temporal metrics
 
-Aggregate DSSAT production forecasts and metrics with respect to Districts and maize growing calendar. 
-
-The maize growing season in Zambia starts from October to end of June. So we will aggregate the metrics and forecast with this condition using the function `RH_metrics`.
-
-```{r rh2, echo=FALSE, warning=FALSE, message=FALSE}
 RH_metrics <- function(rh, sStart, sEnd){
   rh <- subset(rh, format(as.Date(rh$planting), "%m") >= sStart & format(as.Date(rh$harvest), "%m") <= sEnd)
   rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("District","date")], mean, na.rm=T)
@@ -257,13 +247,185 @@ RH_metrics <- function(rh, sStart, sEnd){
 rh <- RH_metrics(tt, sStart ="10", sEnd = "06")
 #rh <- subset(rh, select = - gwad)
 names(rh)[2] <- "year"
+rh$District <- toupper(rh$District)
 
-```
-
-Check and format District names to be consistent in all datasets.
-
-```{r naming, echo=FALSE, warning=FALSE, message=FALSE}
 c <- sort(unique(ref$District))
 c[!c %in% sort(unique(rs$District))]
 c[!c %in% sort(unique(rh$District))]
-```
+#==============================================================================
+## Feature Engineering
+#==============================================================================
+
+minMax <- function(x){
+  return((x-min(x, na.rm=T))/(max(x, na.rm = T) - min(x, na.rm=T)))
+}
+
+rs <- subset(rs, select=-season)
+rs[,-c(1,13)] <- apply(rs[,-c(1,13)], 2, minMax)
+vc <- v_t
+vc <- subset(vc, select=-season)
+vc[,-c(1,13)] <- apply(vc[,-c(1,13)], 2, minMax)
+names(rh)[4] <- "DSSAT_lai" 
+rh[,-c(1,2)] <- apply(rh[,-c(1,2)], 2, minMax)
+
+df_list <- list(rs[rs$year > 2010,], rh[rh$year > 2010,], vc[vc$year > 2010, ], ref[,c("District", "yield_MT_ha","year")])
+data <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list)
+df_list2 <- list(rs[rs$year > 2010,], ref[,c("District", "yield_MT_ha","year")])
+data <- subset(data, select=-gwad)
+vi <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list2)
+
+library(randomForest)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+rf = randomForest(yield_MT_ha~., data=subset(data, select = -c(District,year)), importance=TRUE, ntree = 500)
+importance <- importance(rf)
+importance
+rf
+varImportance <- data.frame(Variables = row.names(importance), 
+                            Importance = round(importance[ ,'%IncMSE'],2))
+
+#Create a rank variable based on importance
+rankImportance <- varImportance %>%
+  mutate(Rank = paste0('#',dense_rank(desc(Importance))))
+
+#Use ggplot2 to visualize the relative importance of variables
+
+ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
+                           y = Importance, fill = Importance)) +
+  geom_bar(stat='identity') + 
+  geom_text(aes(x = Variables, y = 0.5, label = Rank),
+            hjust=0, vjust=0.55, size = 4, colour = 'red') +
+  labs(x = 'EO Metrics') +
+  coord_flip() + 
+  theme_few(base_size = 14)
+
+## Select features that have an impact of 10% MSE on prediction
+#selected <- rankImportance$Variables[rankImportance$Importance>=12]
+#data <- subset(data, select=selected)
+
+#==============================================================================
+## Validation
+#==============================================================================
+rmse <- function(error){
+  sqrt(mean(error^2, na.rm=T))
+}
+
+MAPE <- function (y_pred, y_true){
+  MAPE <- mean(abs((y_true - y_pred)/y_true))
+  return(MAPE*100)
+}
+
+R_square <- function(actual, predicted) {
+  val <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
+  val
+} 
+
+rrmse <- function(predicted, observed){
+  error <- observed - predicted
+  re <- sqrt(mean(error^2))/mean(observed)
+  return(re*100)
+}
+
+library(dismo)
+library(e1071)
+
+models <- function(vi, years, accName){
+  npredictors <- dim(vi)[2]
+  svm_a <- c()
+  svm_b <- c()
+  rf_a <- c()
+  rf_b <- c()
+  r_svm <- c()
+  r_rf <- c()
+  cnn_r <- c()
+  cnn_rmse <- c()
+  cnn_mape <- c()
+  df <- na.omit(subset(vi, select=-District))
+  #df$District <- as.factor(df$District)
+  y <- years
+  for(i in 1:length(y)){
+    observed_y <- 0
+    svm_y <- 0
+    print(paste0('The year ', y[i], " left out for validation.\n"))
+    train <- subset(df, year != y[i], select=-year)
+    valid <- subset(df, year == y[i], select=-year)
+    observed_y <- valid$yield_MT_ha
+    #SVM
+    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
+    #svm <- svm(Yield_MT_HA~., data=data[, c("Yield_MT_HA","gndvi", "ndvi","ndmi", "gpp", "fpar", "Region")], kernel="radial" , cross=5)
+    svm_y <- predict(tuneResult$best.model, valid)
+    #svm_y <- predict(svm, valid)
+    svm_a[i] <- rmse(observed_y-svm_y)
+    svm_b[i] <- MAPE(observed_y, svm_y)
+    cat("SVM Coefficient of determination R^2\n")
+    r_svm[i] <- R_square(observed_y, svm_y)
+    print(r_svm)
+    #RF
+    tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500), mtry = seq(1,npredictors,1))) #
+    print(tuneRF$best.model)
+    #rf = randomForest(Yield_MT_HA~., data=train, importance=TRUE, ntree = 500)
+    
+    rf_y <- predict(tuneRF$best.model, valid)
+    rf_a[i] <- rmse(observed_y-rf_y)
+    rf_b[i] <- MAPE(observed_y, rf_y)
+    cat("RF Coefficient of determination R^2\n")
+    r_rf[i] <- R_square(observed_y, rf_y)
+    print(r_rf)
+    
+    # #CNN
+    # y <-  as.matrix(train[ , "yield_MT_ha"])
+    # x <- array(unlist(subset(train, select=-yield_MT_ha)), dim = c(nrow(train), ncol(train), 1))
+    # xtest <- array(unlist(valid), dim = c(nrow(valid), ncol(valid), 1))
+    # in_dim <- c(dim(x)[2:3])
+    # cnns <- cnn(x, y, in_dim)
+    # cnn_y <- predict(cnns, xtest)
+    # cnn_rmse[i] <- rmse(observed_y-cnn_y)
+    # cnn_mape[i] <- rrmse(observed_y, cnn_y)
+    # cat("CNN Coefficient of determination R^2\n")
+    # cnn_r[i] <- R_square(observed_y, cnn_y)
+    # print(cnn_r)
+    
+  }
+  
+  cat("SVM model RMSE is ", mean(svm_a), "\n")
+  cat("SVM model MAPE is ", mean(svm_b), "\n")
+  cat("SVM model R2 is ", mean(r_svm), "\n")
+  cat("RF model RMSE is ", mean(rf_a), "\n")
+  cat("RF model R2 is ", mean(r_rf), "\n")
+  cat("RF model MAPE is ", mean(rf_b), "\n")
+  #cat("CNN model RMSE is ", mean(cnn_rmse), "\n")
+  #cat("CNN model R2 is ", mean(cnn_r), "\n")
+  #cat("CNN model MAPE is ", mean(cnn_mape), "\n")
+  
+  temp <- rbind(data.frame(RMSE=rf_a, Method="RF", Year=y), data.frame(RMSE=svm_a, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(RMSE=cnn_rmse, Method="CNN", Year=y))
+  
+  par(mfrow=c(2,2), mar=c(4.5,4.5,1,1))
+  boxplot(RMSE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="RMSE (tons/ha)", xlab="")
+  acc <- temp
+  
+  temp <- rbind(data.frame(MAPE=rf_b, Method="RF", Year=y), data.frame(MAPE=svm_b, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(MAPE=cnn_mape, Method="CNN", Year=y))
+  
+  boxplot(MAPE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="MAPE (%)", xlab="", ylim= c(0,100))
+  acc <- merge(acc, temp, by=c("Method", "Year"))
+  
+  temp <- rbind(data.frame(R2=r_rf, Method="RF", Year=y), data.frame(R2=r_svm, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(R2=cnn_r, Method="CNN", Year=y))
+  
+  boxplot(R2 ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab=expression(R^2), xlab="", ylim= c(0,1))
+  
+  acc <- merge(acc,temp, by=c("Method", "Year"))
+  fileName <- paste0(accName,".rds")
+  saveRDS(acc, fileName)
+}
+
+models(vi, years = 2011:2022, accName = "EO_only")
+#Now include RHEAS metrics and see how accuracy behaves.
+
+models(data, years = 2011:2022, accName = "EO_RHEAS")
+
+a <- readRDS("EO_only.rds")
+
+b <- readRDS("EO_RHEAS.rds")
