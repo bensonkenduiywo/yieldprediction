@@ -1,0 +1,601 @@
+---
+title: "Zambia MAIZE Forescasts using MODIS VI indices and RHEAS"
+author: "Dr. -Ing. MISK Benson Kenduiywo"
+csl: "apa-6th-edition.csl"
+output: 
+   html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, global_options, tidy = TRUE, echo=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60))
+opts_knit$set(global.par = TRUE)
+```
+
+
+## Introduction
+
+We will use crop yield data from the Zambian Ministry of Agriculture Livestock to develop a model to predict yields in different districts The data is available for the years 2011--2022.
+
+Load necessary packages and define directories.
+
+```{r refdata, echo=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls(all=TRUE))
+unlink(".RData")
+library(dplyr)
+library(reshape2)
+root <- "/home/servir/RHEAS/data/zambia/"
+metric <- paste0(root, "metrics/")
+ref <- paste0(root, "ref/")
+
+```
+
+## Reference data
+
+Load the maize yield forecasts as per the Zambian Ministry of Agriculture.
+
+```{r y2, echo=FALSE, warning=FALSE, message=FALSE}
+#Load 2010-2018 data
+ref <- read.csv(paste0(ref, "Zambia_District _Maize_Forecasting_2011_2022.csv"), stringsAsFactors =  FALSE)
+ref$District <- toupper(ref$District)
+ref$Province <- trimws(toupper(ref$Province), which = c("both"))
+sort(unique(ref$Province))
+ref$District <- trimws(toupper(ref$District), which = c("both"))
+names(ref)[7] <- "year"
+```
+
+Visualize the crop forecasting data from MoA per year.
+
+```{r par, echo=FALSE, warning=FALSE, message=FALSE}
+par(mar=c(2,2,2,2)) #c(bottom, left, top, right)
+```
+
+
+```{r ref3, echo=FALSE, warning=FALSE, message=FALSE}
+
+boxplot(yield_MT_ha~year, data=ref, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+
+```
+
+Visualize the crop forecasting data from MoA per Province.
+
+```{r ref4, echo=FALSE, warning=FALSE, message=FALSE}
+agg <- ref
+agg$Province <- substr(agg$Province,start=1,stop=4)
+agg <- na.omit(agg)
+boxplot(yield_MT_ha~Province, data=agg, col=rainbow(length(unique(agg$Province))), xlab="Provinces", ylab = "Yield (MT/ha)", main="Zambia MoA Provinces Forecasts.", cex.axis=0.8) #horizontal = T, las=1
+
+```
+
+
+## MODIS RS Indices
+
+### Get Indices
+
+Load MODIS Normalized Difference Vegetation Index (NDVI), Green Normalized difference Vegetation Index (GNDVI), Normalized Difference Moisture Index (NDMI), Gross Primary Productivity (GPP) and Fraction of Photosynthetically Active Radiation (FPAR) county aggregates by date for the period 2000--2017 and convert to long format.
+
+```{r modis, echo=FALSE, warning=FALSE, message=FALSE}
+wide2long <- function(df, variable){
+  melt(df[, -c(1,45)], variable.name = "date", 
+          value.name = variable, id.vars = "county")
+}
+#Indices list; https://www.l3harrisgeospatial.com/docs/canopywatercontent.html#:~:text=Moisture%20Stress%20Index%20(MSI),absorption%20around%201599%20nm%20increases.
+#1.0 EVI
+temp <- list.files(metric, pattern=glob2rx("*_evi_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+evi <- lapply(files, wide2long, "evi")
+evi[[1]][1,]
+
+#2.0 FPAR
+temp <- list.files(metric, pattern=glob2rx("*fpar*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+fpar <- lapply(files, wide2long, "fpar")
+fpar[[1]][1,]
+
+#3.0 GLI
+temp <- list.files(metric, pattern=glob2rx("*_gli_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+gli <- lapply(files, wide2long, "gli")
+gli[[1]][1,]
+
+#4.0 GNDVI
+temp <- list.files(metric, pattern=glob2rx("*gndvi*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+gndvi <- lapply(files, wide2long, "gndvi")
+gndvi[[1]][1,]
+
+#5.0 GPP
+temp <- list.files(metric, pattern=glob2rx("*gpp*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+gpp <- lapply(files, wide2long, "gpp")
+gpp[[1]][1,]
+
+#6.0 LAI
+temp <- list.files(metric, pattern=glob2rx("*lai*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+lai <- lapply(files, wide2long, "lai")
+lai[[1]][1,]
+
+#7.0 MSI
+temp <- list.files(metric, pattern=glob2rx("*_msi_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+msi <- lapply(files, wide2long, "msi")
+msi[[1]][1,]
+
+#8.0 NDMI (Normalized Difference Moisture Index)
+temp <- list.files(metric, pattern=glob2rx("*ndmi*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+ndmi <- lapply(files, wide2long, "ndmi")
+ndmi[[1]][1,]
+
+#9.0 NDVI
+temp <- list.files(metric, pattern=glob2rx("*_ndvi_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+ndvi <- lapply(files, wide2long, "ndvi")
+ndvi[[1]][1,]
+
+#10.0 NPCRI
+temp <- list.files(metric, pattern=glob2rx("*_npcri_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+npcri <- lapply(files, wide2long, "npcri")
+npcri[[1]][1,]
+
+#11.0 SIPI
+temp <- list.files(metric, pattern=glob2rx("*_sipi_*"))
+files <-lapply(paste0(metric,temp), read.csv, stringsAsFactors =  FALSE)
+sipi <- lapply(files, wide2long, "sipi")
+sipi[[1]][1,]
+
+```
+
+Format the date variable by removing unnecessary characters.
+
+```{r y1, echo=FALSE, warning=FALSE, message=FALSE}
+formatDate <- function(m){
+  m$date <- gsub("X","", m$date)
+  m$date <- gsub("_nd","", m$date)
+  m$date <- as.Date(as.character(m$date), format = "%Y_%m_%d")
+  m[1,]
+  colnames(m)[1]<- "District"
+  return(m)
+}
+evi <- lapply(evi, formatDate)
+evi[[1]][1,]
+fpar <- lapply(fpar, formatDate)
+fpar[[1]][1,]
+gli <- lapply(gli, formatDate)
+gli[[1]][1,]
+gndvi <- lapply(gndvi, formatDate)
+gndvi[[1]][1,]
+gpp <- lapply(gpp, formatDate)
+gpp[[1]][1,]
+lai <- lapply(lai, formatDate)
+lai[[1]][1,]
+msi <- lapply(msi, formatDate)
+msi[[1]][1,]
+ndmi <- lapply(ndmi, formatDate)
+ndmi[[1]][1,]
+ndvi <- lapply(ndvi, formatDate)
+ndvi[[1]][1,]
+npcri <- lapply(npcri, formatDate)
+npcri[[1]][1,]
+sipi  <- lapply(sipi, formatDate)
+sipi[[1]][1,]
+
+```
+
+Now combine the list into one dataframe.
+
+```{r y1b, echo=FALSE, warning=FALSE, message=FALSE}
+evi <- do.call(rbind.data.frame, evi)
+fpar <- do.call(rbind.data.frame, fpar)
+gli  <- do.call(rbind.data.frame, gli)
+gndvi  <- do.call(rbind.data.frame, gndvi)
+gpp <- do.call(rbind.data.frame, gpp)
+lai <- do.call(rbind.data.frame, lai)
+msi <- do.call(rbind.data.frame, msi)
+ndmi <- do.call(rbind.data.frame, ndmi)
+ndvi <- do.call(rbind.data.frame, ndvi)
+npcri <- do.call(rbind.data.frame, npcri)
+sipi <- do.call(rbind.data.frame, sipi)
+
+```
+
+
+Now merge all the remote sensing metrics to one data frame.
+
+```{r y1c, echo=FALSE, warning=FALSE, message=FALSE}
+evi$evi <- as.numeric(evi$evi)
+n <- do.call("cbind", list(evi, gli=as.numeric(gli[,-c(1:2)]), gndvi=as.numeric(gndvi[,-c(1:2)]), gpp=as.numeric(gpp[,-c(1:2)]), msi=as.numeric(msi[,-c(1:2)]), ndmi=as.numeric(ndmi[,-c(1:2)]), ndvi=as.numeric(ndvi[,-c(1:2)]), npcri=as.numeric(npcri[,-c(1:2)]), sipi=as.numeric(sipi[,-c(1:2)])))
+temp  <- cbind(lai, fpar=fpar[,-c(1:2)])
+temp[, c("lai","fpar")] <- lapply(c("lai","fpar"), function(x) as.numeric(temp[[x]]))
+modis <- merge(n,temp, by=c("District", "date"))
+modis$District[modis$District=="CHIENGI"] <- "CHIENGE"
+modis$District[modis$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+### RS Temporal Index Aggregation 
+
+Aggregate metrics with respect to District maize growing calendar based on only the vegetative. There is only one season in Zambia.
+Define a function to capture the seasons of Maize growth in Zambia.
+
+```{r st1, echo=FALSE, warning=FALSE, message=FALSE}
+seasonMean <- function(year, df, seasons=1:2) {
+  res <- list()
+  for (i in seasons) {
+    season <- ifelse(i==1, "long", "short")
+    if (season =="long") {
+      sdate <- paste0(year, "-03-01")
+      edate <- paste0(year, "-09-30")
+      season <- "LRLD"
+    } else if (season =="short") {
+      sdate <- paste0(year-1, "-10-01")
+      edate <- paste0(year, "-06-30")
+      season <- "SRSD"
+    } else {
+      stop("Define season")
+    }
+    ydf <- df[df$date >= sdate & df$date <= edate, ]
+    #ym <- aggregate(ydf[,3], ydf[,1, drop=FALSE], mean, na.rm=T)
+    ydf <- subset(ydf, select=-date)
+    ym <- aggregate(.~District, data=ydf, mean, na.rm=T)
+    ym$year <- year
+    ym$season <- season
+    res[[i]] <- ym    
+  }  
+  do.call(rbind, res)  
+}
+
+```
+
+Temporally aggregate the spatial indices to obtain *spatial-temporal RS metrics*.
+
+```{r st2, echo=FALSE, warning=FALSE, message=FALSE}
+years <- 2010:2022
+temp <- lapply(years, seasonMean, modis, seasons=2)
+rs <- do.call(rbind, temp)
+rs <- rs[!rs$District=="Counties",]
+```
+
+## DSSAT Indices
+
+Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
+
+
+```{r dssat1, echo=FALSE, warning=FALSE, message=FALSE}
+path <- "/home/servir/RHEAS/yields/"
+tt <- read.csv(paste0(path, "zambia_chirps_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+tt$harvest <- as.Date(tt$harvest)
+tt$planting <- as.Date(tt$planting)
+tt$date <- format(tt$harvest, format = "%Y")
+names(tt)[3] <- "District"
+tt$District[tt$District=="CHIENGI"] <- "CHIENGE"
+tt$District[tt$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+### DSSAT Spatial-Temporal metrics
+
+Aggregate DSSAT production forecasts and metrics with respect to Districts and maize growing calendar. 
+
+The maize growing season in Zambia starts from October to end of June. So we will aggregate the metrics and forecast with this condition using the function `RH_metrics`.
+
+```{r rh2, echo=FALSE, warning=FALSE, message=FALSE}
+RH_metrics <- function(rh, sStart, sEnd){
+  rh <- subset(rh, format(as.Date(rh$planting), "%m") >= sStart & format(as.Date(rh$harvest), "%m") <= sEnd)
+  rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("District","date")], mean, na.rm=T)
+  return(rh)
+}
+
+rh <- RH_metrics(tt, sStart ="10", sEnd = "06")
+#rh <- subset(rh, select = - gwad)
+names(rh)[2] <- "year"
+
+```
+
+Check and format District names to be consistent in all datasets.
+
+```{r naming, echo=FALSE, warning=FALSE, message=FALSE}
+c <- sort(unique(ref$District))
+c[!c %in% sort(unique(rs$District))]
+c[!c %in% sort(unique(rh$District))]
+```
+
+
+### Add VIC Spatial-Temporal metrics
+
+Load spatial-temporal metrics for VIC model.
+
+```{r vic1, echo=FALSE, warning=FALSE, message=FALSE}
+vc <- readRDS(paste0(metric,"vic_metrics_v1.rds"))
+#vc <- subset(vc, select=-c(season, prec, rainf, evap_canop))
+vc <- subset(vc, select=-c(season))
+```
+
+
+## Feature Engineering
+
+Here we explore how different features perform w.r.t yield forecasting.
+
+Normalize all indices to between 0 and 1.
+
+```{r feat1, echo=FALSE, warning=FALSE, message=FALSE}
+minMax <- function(x){
+  return((x-min(x, na.rm=T))/(max(x, na.rm = T) - min(x, na.rm=T)))
+}
+```
+
+
+Combine MODIS NDVI with reference data and including RHEAS indices as a separate dataframe for comparison.
+
+```{r feat2, echo=FALSE, warning=FALSE, message=FALSE}
+rs <- subset(rs, select=-season)
+rs[,-c(1,13)] <- apply(rs[,-c(1,13)], 2, minMax)
+vc[,-c(1,13)] <- apply(vc[,-c(1,13)], 2, minMax)
+names(rh)[4] <- "DSSAT_lai" 
+rh[,-c(1,2)] <- apply(rh[,-c(1,2)], 2, minMax)
+
+df_list <- list(rs[rs$year > 2010,], rh[rh$year > 2010,], vc[vc$year > 2010, ], ref[,c("District", "yield_MT_ha","year")])
+data <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list)
+df_list2 <- list(rs[rs$year > 2010,], ref[,c("District", "yield_MT_ha","year")])
+data <- subset(data, select=-gwad)
+vi <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list2)
+  
+```
+
+
+Feature selection using random forest
+
+```{r feat3, echo=FALSE, warning=FALSE, message=FALSE}
+library(randomForest)
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+rf = randomForest(yield_MT_ha~., data=subset(data, select = -c(District,year)), importance=TRUE, ntree = 500)
+importance <- importance(rf)
+importance
+rf
+varImportance <- data.frame(Variables = row.names(importance), 
+                            Importance = round(importance[ ,'%IncMSE'],2))
+
+#Create a rank variable based on importance
+rankImportance <- varImportance %>%
+  mutate(Rank = paste0('#',dense_rank(desc(Importance))))
+
+#Use ggplot2 to visualize the relative importance of variables
+
+ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
+                           y = Importance, fill = Importance)) +
+  geom_bar(stat='identity') + 
+  geom_text(aes(x = Variables, y = 0.5, label = Rank),
+            hjust=0, vjust=0.55, size = 4, colour = 'red') +
+  labs(x = 'EO Metrics') +
+  coord_flip() + 
+  theme_few(base_size = 14)
+
+## Select features that have an impact of 10% MSE on prediction
+#selected <- rankImportance$Variables[rankImportance$Importance>=12]
+#data <- subset(data, select=selected)
+```
+
+
+## Validation
+
+### RMSE
+
+We can use the Root Mean Square Error (RMSE) to evaluate the models accuracy. RMSE is given as:
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n \widehat{y}-y},
+$$
+where $\widehat{y}$  and $y$ are predicted yields and observed yields respectively while *n* is the number of fitted points.
+
+```{r rmse, echo=FALSE, warning=FALSE, message=FALSE}
+rmse <- function(error){
+  sqrt(mean(error^2, na.rm=T))
+}
+
+```
+
+### MAPE
+
+Mean absolute percentage error (MAPE) is given as:
+
+$$
+\text{MAPE} = \frac{100\%}{n} \sum_{i=1}^n |\frac{y-\widehat{y}}{y}|.
+$$
+In R we can write it as:
+
+```{r mape, echo=FALSE, warning=FALSE, message=FALSE}
+MAPE <- function (y_pred, y_true){
+    MAPE <- mean(abs((y_true - y_pred)/y_true))
+    return(MAPE*100)
+}
+```
+
+### $R^2$
+
+We can also compute $R^2$ measure as follows:
+
+```{r r_Squared, echo=FALSE, warning=FALSE, message=FALSE}
+R_square <- function(actual, predicted) {
+  val <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
+  val
+} 
+```
+
+### RRMSE
+
+What about Relative root mean square error (RRMSE):
+
+$$
+\text{RRMSE} = \frac{\sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}}}{\frac{1}{n} \sum_{i=1}^n y},
+$$
+According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), the performance of the model is excellent when RRMSE < 10%; good if 10\% < RRMSE < 20\%; fair if 20\% < RRMSE < 30\%; and poor if RRMSE ≥ 30\%.
+
+```{r rrmse, echo=FALSE, warning=FALSE, message=FALSE}
+rrmse <- function(predicted, observed){
+  error <- observed - predicted
+  re <- sqrt(mean(error^2))/mean(observed)
+  return(re*100)
+}
+```
+
+CNN Model
+
+```{r cnn}
+library(keras)
+library(caret)
+
+set.seed(123)
+cnn <-  function(xtrain, ytrain, in_dim){
+	model = keras_model_sequential() %>%
+	layer_conv_1d(filters = 64, kernel_size = 2,
+                input_shape = in_dim, activation = "relu") %>%
+	layer_flatten() %>%
+	layer_dense(units = 32, activation = "relu") %>%
+	layer_dense(units = 1, activation = "linear")
+
+	model %>% compile(
+	  loss = "mse",
+	  optimizer = "adam")
+	model %>% summary()
+	model %>% fit(xtrain, ytrain, epochs = 100, batch_size=16, verbose = 0)
+	scores = model %>% evaluate(xtrain, ytrain, verbose = 0)
+	print(scores)
+	return(model)
+}
+
+```
+
+Leave one year out cross validation using RS metrics only. Createa modelling function comparing RF and SVM.
+
+```{r cv1, echo=FALSE, warning=FALSE, message=FALSE}
+#library(rJava)
+#Sys.setenv(JAVA_HOME="C:/Program Files/Java/jdk-18.0.1.1")
+#options(java.parameters = "-Xmx4g")
+#extrees <- "https://cran.r-project.org/src/contrib/Archive/extraTrees/extraTrees_1.0.5.tar.gz"
+#install.packages(extrees, repos=NULL, type="source", dependencies = T) 
+#rjv <- "https://cran.r-project.org/src/contrib/Archive/rJava/rJava_1.0-5.tar.gz"
+#install.packages(rjv, repos=NULL, type="source", dependencies = T)
+
+#library(extraTrees)
+library(dismo)
+library(e1071)
+
+models <- function(vi, years, accName){
+  npredictors <- dim(vi)[2]
+  svm_a <- c()
+  svm_b <- c()
+  rf_a <- c()
+  rf_b <- c()
+  r_svm <- c()
+  r_rf <- c()
+  cnn_r <- c()
+  cnn_rmse <- c()
+  cnn_mape <- c()
+  df <- na.omit(subset(vi, select=-District))
+  #df$District <- as.factor(df$District)
+  y <- years
+  for(i in 1:length(y)){
+    observed_y <- 0
+    svm_y <- 0
+    print(paste0('The year ', y[i], " left out for validation.\n"))
+    train <- subset(df, year != y[i], select=-year)
+  	valid <- subset(df, year == y[i], select=-year)
+  	observed_y <- valid$yield_MT_ha
+    #SVM
+    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
+    #svm <- svm(Yield_MT_HA~., data=data[, c("Yield_MT_HA","gndvi", "ndvi","ndmi", "gpp", "fpar", "Region")], kernel="radial" , cross=5)
+    svm_y <- predict(tuneResult$best.model, valid)
+    #svm_y <- predict(svm, valid)
+    svm_a[i] <- rmse(observed_y-svm_y)
+    svm_b[i] <- MAPE(observed_y, svm_y)
+    cat("SVM Coefficient of determination R^2\n")
+    r_svm[i] <- R_square(observed_y, svm_y)
+    print(r_svm)
+    #RF
+    tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500), mtry = seq(1,npredictors,1))) #
+    print(tuneRF$best.model)
+    #rf = randomForest(Yield_MT_HA~., data=train, importance=TRUE, ntree = 500)
+  
+    rf_y <- predict(tuneRF$best.model, valid)
+    rf_a[i] <- rmse(observed_y-rf_y)
+    rf_b[i] <- MAPE(observed_y, rf_y)
+    cat("RF Coefficient of determination R^2\n")
+    r_rf[i] <- R_square(observed_y, rf_y)
+    print(r_rf)
+    
+    # #CNN
+    # y <-  as.matrix(train[ , "yield_MT_ha"])
+    # x <- array(unlist(subset(train, select=-yield_MT_ha)), dim = c(nrow(train), ncol(train), 1))
+    # xtest <- array(unlist(valid), dim = c(nrow(valid), ncol(valid), 1))
+    # in_dim <- c(dim(x)[2:3])
+    # cnns <- cnn(x, y, in_dim)
+    # cnn_y <- predict(cnns, xtest)
+    # cnn_rmse[i] <- rmse(observed_y-cnn_y)
+    # cnn_mape[i] <- rrmse(observed_y, cnn_y)
+    # cat("CNN Coefficient of determination R^2\n")
+    # cnn_r[i] <- R_square(observed_y, cnn_y)
+    # print(cnn_r)
+    
+  }
+  
+  cat("SVM model RMSE is ", mean(svm_a), "\n")
+  cat("SVM model MAPE is ", mean(svm_b), "\n")
+  cat("SVM model R2 is ", mean(r_svm), "\n")
+  cat("RF model RMSE is ", mean(rf_a), "\n")
+  cat("RF model R2 is ", mean(r_rf), "\n")
+  cat("RF model MAPE is ", mean(rf_b), "\n")
+  #cat("CNN model RMSE is ", mean(cnn_rmse), "\n")
+  #cat("CNN model R2 is ", mean(cnn_r), "\n")
+  #cat("CNN model MAPE is ", mean(cnn_mape), "\n")
+  
+  temp <- rbind(data.frame(RMSE=rf_a, Method="RF", Year=y), data.frame(RMSE=svm_a, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(RMSE=cnn_rmse, Method="CNN", Year=y))
+
+  par(mfrow=c(2,2), mar=c(4.5,4.5,1,1))
+  boxplot(RMSE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="RMSE (tons/ha)", xlab="")
+  acc <- temp
+  
+  temp <- rbind(data.frame(MAPE=rf_b, Method="RF", Year=y), data.frame(MAPE=svm_b, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(MAPE=cnn_mape, Method="CNN", Year=y))
+    
+   boxplot(MAPE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="MAPE (%)", xlab="", ylim= c(0,100))
+  acc <- merge(acc, temp, by=c("Method", "Year"))
+   
+  temp <- rbind(data.frame(R2=r_rf, Method="RF", Year=y), data.frame(R2=r_svm, Method="SVM", Year=y))
+  #temp <- rbind(temp, data.frame(R2=cnn_r, Method="CNN", Year=y))
+  
+  boxplot(R2 ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab=expression(R^2), xlab="", ylim= c(0,1))
+   
+   acc <- merge(acc,temp, by=c("Method", "Year"))
+   fileName <- paste0(accName,".rds")
+   saveRDS(acc, fileName)
+}
+
+models(vi, years = 2011:2022, accName = "EO_only")
+
+```
+
+Now include RHEAS metrics and see how accuracy behaves.
+
+```{r cv2, echo=FALSE, warning=FALSE, message=FALSE}
+models(data, years = 2011:2022, accName = "EO_RHEAS")
+```
+
+## Predict current Year Yields
+
+Use best configuration to predict current season yields.
+
+
+
+
