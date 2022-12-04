@@ -277,6 +277,7 @@ vi <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list2)
 library(randomForest)
 library(ggplot2)
 library(ggthemes)
+library(ggeasy)
 library(dplyr)
 rf = randomForest(yield_MT_ha~., data=subset(data, select = -c(District,year)), importance=TRUE, ntree = 500)
 importance <- importance(rf)
@@ -290,16 +291,21 @@ rankImportance <- varImportance %>%
   mutate(Rank = paste0('#',dense_rank(desc(Importance))))
 
 #Use ggplot2 to visualize the relative importance of variables
+tiff(paste0(root, "Results/ZMB/ZMB_Feature_importance.tif"), units="px", width=2250, height=2250, res=300, pointsize=16)
+par(mar=c(4.5,4.0,2,2)) #c(bottom, left, top, right) A4 paper size in pixels 3508 x 2480
 
 ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
                            y = Importance, fill = Importance)) +
   geom_bar(stat='identity') + 
   geom_text(aes(x = Variables, y = 0.5, label = Rank),
-            hjust=0, vjust=0.55, size = 4, colour = 'red') +
+            hjust=0, vjust=0.55, size = 4, colour = 'green') +
+  scico::scale_fill_scico(palette = "lajolla")+
   labs(x = 'EO Metrics') +
-  coord_flip() + 
-  theme_few(base_size = 14)
-
+  coord_flip() +
+  ggtitle("Zambia")+
+  theme_few(base_size = 20)+
+  ggeasy::easy_center_title()
+dev.off()
 ## Select features that have an impact of 10% MSE on prediction
 #selected <- rankImportance$Variables[rankImportance$Importance>=12]
 #data <- subset(data, select=selected)
@@ -338,9 +344,9 @@ models <- function(vi, years, accName){
   rf_b <- c()
   r_svm <- c()
   r_rf <- c()
-  cnn_r <- c()
-  cnn_rmse <- c()
-  cnn_mape <- c()
+  lm_r <- c()
+  lm_rmse <- c()
+  lm_mape <- c()
   df <- na.omit(subset(vi, select=-District))
   #df$District <- as.factor(df$District)
   y <- years
@@ -373,7 +379,14 @@ models <- function(vi, years, accName){
     r_rf[i] <- R_square(observed_y, rf_y)
     print(r_rf)
     
-    # #CNN
+    # #Linear model
+    lm1 <- lm(yield_MT_ha~., data = train)
+    lm_y <- predict(lm1)
+    lm_rmse[i] <- rmse(observed_y-svm_y)
+    lm_mape[i] <- MAPE(observed_y, svm_y)
+    cat("SVM Coefficient of determination R^2\n")
+    lm_r[i] <- R_square(observed_y, svm_y)
+    print(lm_r)
     # y <-  as.matrix(train[ , "yield_MT_ha"])
     # x <- array(unlist(subset(train, select=-yield_MT_ha)), dim = c(nrow(train), ncol(train), 1))
     # xtest <- array(unlist(valid), dim = c(nrow(valid), ncol(valid), 1))
@@ -398,33 +411,32 @@ models <- function(vi, years, accName){
   #cat("CNN model R2 is ", mean(cnn_r), "\n")
   #cat("CNN model MAPE is ", mean(cnn_mape), "\n")
   
-  temp <- rbind(data.frame(RMSE=rf_a, Method="RF", Year=y), data.frame(RMSE=svm_a, Method="SVM", Year=y))
+  temp <- rbind(data.frame(RMSE=rf_a, Method="RF", Year=y), data.frame(RMSE=svm_a, Method="SVM", Year=y), data.frame(RMSE=lm_rmse, Method="LM", Year=y))
   #temp <- rbind(temp, data.frame(RMSE=cnn_rmse, Method="CNN", Year=y))
   
   par(mfrow=c(2,2), mar=c(4.5,4.5,1,1))
   boxplot(RMSE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="RMSE (tons/ha)", xlab="")
   acc <- temp
   
-  temp <- rbind(data.frame(MAPE=rf_b, Method="RF", Year=y), data.frame(MAPE=svm_b, Method="SVM", Year=y))
+  temp <- rbind(data.frame(MAPE=rf_b, Method="RF", Year=y), data.frame(MAPE=svm_b, Method="SVM", Year=y), data.frame(MAPE=lm_mape, Method="LM", Year=y))
   #temp <- rbind(temp, data.frame(MAPE=cnn_mape, Method="CNN", Year=y))
   
   boxplot(MAPE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="MAPE (%)", xlab="", ylim= c(0,100))
   acc <- merge(acc, temp, by=c("Method", "Year"))
   
-  temp <- rbind(data.frame(R2=r_rf, Method="RF", Year=y), data.frame(R2=r_svm, Method="SVM", Year=y))
+  temp <- rbind(data.frame(R2=r_rf, Method="RF", Year=y), data.frame(R2=r_svm, Method="SVM", Year=y), data.frame(R2=lm_r, Method="LM", Year=y))
   #temp <- rbind(temp, data.frame(R2=cnn_r, Method="CNN", Year=y))
   
   boxplot(R2 ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab=expression(R^2), xlab="", ylim= c(0,1))
   
-  acc <- merge(acc,temp, by=c("Method", "Year"))
+  acc <- merge(acc, temp, by=c("Method", "Year"))
   fileName <- paste0(accName,".rds")
   saveRDS(acc, fileName)
 }
 
-models(vi, years = 2011:2022, accName = "EO_only")
+models(vi, years = 2011:2022, accName = "ZMB_EO_only")
 #Now include RHEAS metrics and see how accuracy behaves.
-
-models(data, years = 2011:2022, accName = "EO_RHEAS")
+models(subset(data, select=-c(DSSAT_lai, wsgd)), years = 2011:2022, accName = "ZMB_EO_RHEAS")
 
 a <- readRDS("EO_only.rds")
 
