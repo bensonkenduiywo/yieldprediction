@@ -252,6 +252,9 @@ rh$District <- toupper(rh$District)
 c <- sort(unique(ref$District))
 c[!c %in% sort(unique(rs$District))]
 c[!c %in% sort(unique(rh$District))]
+rheas <- rh
+rheas$gwad <- rheas$gwad/1000
+rheas <- merge(rheas, ref, by=c("District", "year"))
 #==============================================================================
 ## Feature Engineering
 #==============================================================================
@@ -317,127 +320,107 @@ rmse <- function(error){
   sqrt(mean(error^2, na.rm=T))
 }
 
-MAPE <- function (y_pred, y_true){
-  MAPE <- mean(abs((y_true - y_pred)/y_true))
+#“Mean Bias Error” is the tendency of a measurement process to overestimate or underestimate the value of a parameter.
+MBE <- function(obs, pred){
+  error <- obs - pred
+  return (mean(error, na.rm=T))#( mean(sum(error, na.rm=T)/length(obs)) )
+}
+
+MAPE <- function (obs, pred){
+  abs_error <- (abs(obs - pred))/obs
+  MAPE <- sum(abs_error)/length(obs)
   return(MAPE*100)
 }
 
-R_square <- function(actual, predicted) {
-  val <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
-  val
+R_square <- function(obs, pred) {
+  #val <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
+  #val
+  return(cor(obs, pred)^2)
 } 
-
-rrmse <- function(predicted, observed){
-  error <- observed - predicted
-  re <- sqrt(mean(error^2))/mean(observed)
-  return(re*100)
+#Excellent when RRMSE < 10%, Good when RRMSE is between 10% and 20%, Fair when RRMSE is between 20% and 30% and Poor when RRMSE > 30%
+rrmse <- function(obs, pred){
+  num <- sum((obs - pred)^2)
+  den <- sum((pred)^2)
+  squared_error <- num/den
+  rrmse_loss <- sqrt(squared_error)
+  return(rrmse_loss * 100)
 }
 
 library(dismo)
 library(e1071)
 
 models <- function(vi, years, accName){
-  npredictors <- dim(vi)[2]
-  svm_a <- c()
-  svm_b <- c()
-  rf_a <- c()
-  rf_b <- c()
-  r_svm <- c()
-  r_rf <- c()
-  lm_r <- c()
-  lm_rmse <- c()
-  lm_mape <- c()
-  df <- na.omit(subset(vi, select=-District))
-  #df$District <- as.factor(df$District)
+  dists <- sort(unique(vi$District))
+  temp <- na.omit(vi)
+  drf <- data.frame(matrix(nrow= length(dists), ncol = 5))
+  colnames(drf) <- c("District","RMSE", "MAPE", "RRMSE", "MBE")
+  drf$District <- dists
+  dsvm <- drf
+  dlm  <- drf
   y <- years
-  for(i in 1:length(y)){
-    observed_y <- 0
-    svm_y <- 0
-    print(paste0('The year ', y[i], " left out for validation.\n"))
-    train <- subset(df, year != y[i], select=-year)
-    valid <- subset(df, year == y[i], select=-year)
-    observed_y <- valid$yield_MT_ha
-    #SVM
-    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
-    #svm <- svm(Yield_MT_HA~., data=data[, c("Yield_MT_HA","gndvi", "ndvi","ndmi", "gpp", "fpar", "Region")], kernel="radial" , cross=5)
-    svm_y <- predict(tuneResult$best.model, valid)
-    #svm_y <- predict(svm, valid)
-    svm_a[i] <- rmse(observed_y-svm_y)
-    svm_b[i] <- MAPE(observed_y, svm_y)
-    cat("SVM Coefficient of determination R^2\n")
-    r_svm[i] <- R_square(observed_y, svm_y)
-    print(r_svm)
-    #RF
-    tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500), mtry = seq(1,npredictors,1))) #
-    print(tuneRF$best.model)
-    #rf = randomForest(Yield_MT_HA~., data=train, importance=TRUE, ntree = 500)
-    
-    rf_y <- predict(tuneRF$best.model, valid)
-    rf_a[i] <- rmse(observed_y-rf_y)
-    rf_b[i] <- MAPE(observed_y, rf_y)
-    cat("RF Coefficient of determination R^2\n")
-    r_rf[i] <- R_square(observed_y, rf_y)
-    print(r_rf)
-    
-    # #Linear model
-    lm1 <- lm(yield_MT_ha~., data = train)
-    lm_y <- predict(lm1)
-    lm_rmse[i] <- rmse(observed_y-svm_y)
-    lm_mape[i] <- MAPE(observed_y, svm_y)
-    cat("SVM Coefficient of determination R^2\n")
-    lm_r[i] <- R_square(observed_y, svm_y)
-    print(lm_r)
-    # y <-  as.matrix(train[ , "yield_MT_ha"])
-    # x <- array(unlist(subset(train, select=-yield_MT_ha)), dim = c(nrow(train), ncol(train), 1))
-    # xtest <- array(unlist(valid), dim = c(nrow(valid), ncol(valid), 1))
-    # in_dim <- c(dim(x)[2:3])
-    # cnns <- cnn(x, y, in_dim)
-    # cnn_y <- predict(cnns, xtest)
-    # cnn_rmse[i] <- rmse(observed_y-cnn_y)
-    # cnn_mape[i] <- rrmse(observed_y, cnn_y)
-    # cat("CNN Coefficient of determination R^2\n")
-    # cnn_r[i] <- R_square(observed_y, cnn_y)
-    # print(cnn_r)
-    
+  val1 <- data.frame()
+  val2 <- data.frame()
+  for(d in 1: length(dists)){
+    df <- temp[temp$District==dists[d], ]
+    df <- subset(df, select=-District)
+    for(i in 1:length(y)){
+      observed_y <- 0
+      svm_y <- 0
+      print(paste0('The year ', y[i], " left out for validation.\n"))
+      train <- subset(df, year != y[i], select=-year)
+      valid <- subset(df, year == y[i], select=-year)
+      observed_y <- valid$yield_MT_ha
+      #1.0 SVM
+      tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
+      svm_y <- predict(tuneResult$best.model, valid)
+      dsvm$RMSE[dsvm$District==dists[d]]  <-  rmse(observed_y-svm_y)
+      dsvm$MAPE[dsvm$District==dists[d]]  <-  MAPE(observed_y,svm_y)
+      dsvm$RRMSE[dsvm$District==dists[d]] <-  rrmse(observed_y,svm_y)
+      dsvm$MBE[dsvm$District==dists[d]] <-  rrmse(observed_y,svm_y)
+      #2.0 RF
+      tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
+      rf_y <- predict(tuneRF$best.model, valid)
+      drf$RMSE[drf$District==dists[d]]  <-  rmse(observed_y-rf_y)
+      drf$MAPE[drf$District==dists[d]]  <-  MAPE(observed_y,rf_y)
+      drf$RRMSE[drf$District==dists[d]] <-  rrmse(observed_y,rf_y)
+      drf$MBE[drf$District==dists[d]] <-  rrmse(observed_y,rf_y)
+      #3.0 LM
+      lm1 <- lm(yield_MT_ha~., data = train)
+      lm_y <- predict(lm1)
+      dlm$RMSE[dlm$District==dists[d]]  <-  rmse(observed_y-lm_y)
+      dlm$MAPE[dlm$District==dists[d]]  <-  MAPE(observed_y,lm_y)
+      dlm$RRMSE[dlm$District==dists[d]] <-  rrmse(observed_y,lm_y)
+      dlm$MBE[dlm$District==dists[d]] <-  rrmse(observed_y,lm_y)
+     
+    }
+    val1 <-  rbind(val1, dsvm)
+    saveRDS(val1, paste0(accName,"SVM_accuracy_Districts.rds"))
+    val2 <-  rbind(val2, drf)
+    saveRDS(val2, paste0(accName,"RF_accuracy_Districts.rds"))
+    val3 <-  rbind(val3, dlm)
+    saveRDS(val3, paste0(accName,"LM_accuracy_Districts.rds"))
+    #val <- aggregate(.~District, val[, c("RMSE", "RRMSE", "MAPE", "District")] , mean, na.rm=T)
   }
   
-  cat("SVM model RMSE is ", mean(svm_a), "\n")
-  cat("SVM model MAPE is ", mean(svm_b), "\n")
-  cat("SVM model R2 is ", mean(r_svm), "\n")
-  cat("RF model RMSE is ", mean(rf_a), "\n")
-  cat("RF model R2 is ", mean(r_rf), "\n")
-  cat("RF model MAPE is ", mean(rf_b), "\n")
-  #cat("CNN model RMSE is ", mean(cnn_rmse), "\n")
-  #cat("CNN model R2 is ", mean(cnn_r), "\n")
-  #cat("CNN model MAPE is ", mean(cnn_mape), "\n")
-  
-  temp <- rbind(data.frame(RMSE=rf_a, Method="RF", Year=y), data.frame(RMSE=svm_a, Method="SVM", Year=y), data.frame(RMSE=lm_rmse, Method="LM", Year=y))
-  #temp <- rbind(temp, data.frame(RMSE=cnn_rmse, Method="CNN", Year=y))
-  
-  par(mfrow=c(2,2), mar=c(4.5,4.5,1,1))
-  boxplot(RMSE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="RMSE (tons/ha)", xlab="")
-  acc <- temp
-  
-  temp <- rbind(data.frame(MAPE=rf_b, Method="RF", Year=y), data.frame(MAPE=svm_b, Method="SVM", Year=y), data.frame(MAPE=lm_mape, Method="LM", Year=y))
-  #temp <- rbind(temp, data.frame(MAPE=cnn_mape, Method="CNN", Year=y))
-  
-  boxplot(MAPE ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab="MAPE (%)", xlab="", ylim= c(0,100))
-  acc <- merge(acc, temp, by=c("Method", "Year"))
-  
-  temp <- rbind(data.frame(R2=r_rf, Method="RF", Year=y), data.frame(R2=r_svm, Method="SVM", Year=y), data.frame(R2=lm_r, Method="LM", Year=y))
-  #temp <- rbind(temp, data.frame(R2=cnn_r, Method="CNN", Year=y))
-  
-  boxplot(R2 ~ Method, data =temp, col=c("#999999", "#E69F00"), ylab=expression(R^2), xlab="", ylim= c(0,1))
-  
-  acc <- merge(acc, temp, by=c("Method", "Year"))
-  fileName <- paste0(accName,".rds")
-  saveRDS(acc, fileName)
-}
 
+}
+#VI only
 models(vi, years = 2011:2022, accName = "ZMB_EO_only")
 #Now include RHEAS metrics and see how accuracy behaves.
 models(subset(data, select=-c(DSSAT_lai, wsgd)), years = 2011:2022, accName = "ZMB_EO_RHEAS")
 
-a <- readRDS("EO_only.rds")
 
-b <- readRDS("EO_RHEAS.rds")
+###Compute RMSE, MAPE and R2 for RHEAS
+
+dists <- sort(unique(rheas$District))
+dff <- data.frame(matrix(nrow= length(dists), ncol = 5))
+colnames(dff) <- c("District","RMSE", "MAPE", "RRMSE", "MBE")
+dff$District <- dists
+for(i in 1:length(unique(rheas$District))){
+  temp <- rheas[rheas$District==dists[i], ]
+  dff$RMSE[dff$District==dists[i]]  <-  rmse(temp$yield_MT_ha-temp$gwad)
+  dff$MAPE[dff$District==dists[i]]  <-  MAPE(temp$yield_MT_ha, temp$gwad)
+  dff$RRMSE[dff$District==dists[i]] <-  rrmse(temp$yield_MT_ha, temp$gwad)
+  dff$MBE[dff$District==dists[i]]   <-  MBE(temp$yield_MT_ha, temp$gwad)
+}
+saveRDS(dff, "ZMB_RHEAS_accuracy_Districts.rds")
