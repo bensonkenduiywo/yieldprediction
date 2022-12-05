@@ -5,8 +5,8 @@ path <- "/home/servir/vic_outputs/mwi/"
 outpath <- "/home/servir/vic_outputs/"
 country <- "mwi_tamsat"
 library(terra)
-pols <- vect('/home/servir/RHEAS/data/kenya/shp/Kenya_maize_counties_dd.shp')
-years <- 2010:2018
+pols <- vect('/home/servir/RHEAS/data/malawi/shp/gadm40_MWI_1.shp')
+years <- 2012:2021
 # ============================================================================
 # 2.0 Spatial aggregation of Metrics
 # ============================================================================
@@ -41,15 +41,15 @@ for(i in variable){
 
 df <- do.call(rbind, out)
 
-saveRDS(df, paste0(outpath, country,"_spatial_aggregates.rds"))
+saveRDS(df, paste0(outpath, country,"_spatial_aggregates_v1.rds"))
 # ============================================================================
 # 3.0 Temporal aggregation of Metrics
 # ============================================================================
 # Temporally aggregate the spatial metrics per year to obtain spatial-temporal vic metrics.
-seasonMean <- function(year, df, seasons=1:2) {
+seasonMean <- function(years, df, seasons=1:2) {
   res <- list()
-  for (i in seasons) {
-    season <- ifelse(i==1, "long", "short")
+  for (year in years) {
+    season <- ifelse(seasons==1, "long", "short")
     if (season =="long") {
       sdate <- paste0(year, "-03-01")
       edate <- paste0(year, "-09-30")
@@ -72,10 +72,10 @@ seasonMean <- function(year, df, seasons=1:2) {
   do.call(rbind, res)  
 }
 
-
 #Now compute the temporal averages using the function.
 
 temp <- lapply(years, seasonMean, df, seasons=2)
+
 vic <- do.call(rbind, temp)
 
 saveRDS(vic, paste0(outpath, country,"_spatial-temporal_aggregates_v1.rds"))
