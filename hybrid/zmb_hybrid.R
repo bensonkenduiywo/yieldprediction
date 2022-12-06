@@ -328,7 +328,7 @@ MBE <- function(obs, pred){
 
 MAPE <- function (obs, pred){
   abs_error <- (abs(obs - pred))/obs
-  MAPE <- sum(abs_error)/length(obs)
+  MAPE <- sum(abs_error, na.rm=T)/length(obs)
   return(MAPE*100)
 }
 
@@ -339,8 +339,8 @@ R_square <- function(obs, pred) {
 } 
 #Excellent when RRMSE < 10%, Good when RRMSE is between 10% and 20%, Fair when RRMSE is between 20% and 30% and Poor when RRMSE > 30%
 rrmse <- function(obs, pred){
-  num <- sum((obs - pred)^2)
-  den <- sum((pred)^2)
+  num <- sum((obs - pred)^2, na.rm=T)
+  den <- sum((pred)^2, na.rm=T)
   squared_error <- num/den
   rrmse_loss <- sqrt(squared_error)
   return(rrmse_loss * 100)
@@ -350,77 +350,139 @@ library(dismo)
 library(e1071)
 
 models <- function(vi, years, accName){
-  dists <- sort(unique(vi$District))
   temp <- na.omit(vi)
-  drf <- data.frame(matrix(nrow= length(dists), ncol = 5))
-  colnames(drf) <- c("District","RMSE", "MAPE", "RRMSE", "MBE")
-  drf$District <- dists
-  dsvm <- drf
-  dlm  <- drf
   y <- years
-  val1 <- data.frame()
-  val2 <- data.frame()
-  for(d in 1: length(dists)){
-    df <- temp[temp$District==dists[d], ]
-    df <- subset(df, select=-District)
-    for(i in 1:length(y)){
-      observed_y <- 0
-      svm_y <- 0
-      print(paste0('The year ', y[i], " left out for validation.\n"))
-      train <- subset(df, year != y[i], select=-year)
-      valid <- subset(df, year == y[i], select=-year)
-      observed_y <- valid$yield_MT_ha
-      #1.0 SVM
-      tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
-      svm_y <- predict(tuneResult$best.model, valid)
-      dsvm$RMSE[dsvm$District==dists[d]]  <-  rmse(observed_y-svm_y)
-      dsvm$MAPE[dsvm$District==dists[d]]  <-  MAPE(observed_y,svm_y)
-      dsvm$RRMSE[dsvm$District==dists[d]] <-  rrmse(observed_y,svm_y)
-      dsvm$MBE[dsvm$District==dists[d]] <-  rrmse(observed_y,svm_y)
-      #2.0 RF
-      tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
-      rf_y <- predict(tuneRF$best.model, valid)
-      drf$RMSE[drf$District==dists[d]]  <-  rmse(observed_y-rf_y)
-      drf$MAPE[drf$District==dists[d]]  <-  MAPE(observed_y,rf_y)
-      drf$RRMSE[drf$District==dists[d]] <-  rrmse(observed_y,rf_y)
-      drf$MBE[drf$District==dists[d]] <-  rrmse(observed_y,rf_y)
-      #3.0 LM
-      lm1 <- lm(yield_MT_ha~., data = train)
-      lm_y <- predict(lm1)
-      dlm$RMSE[dlm$District==dists[d]]  <-  rmse(observed_y-lm_y)
-      dlm$MAPE[dlm$District==dists[d]]  <-  MAPE(observed_y,lm_y)
-      dlm$RRMSE[dlm$District==dists[d]] <-  rrmse(observed_y,lm_y)
-      dlm$MBE[dlm$District==dists[d]] <-  rrmse(observed_y,lm_y)
-     
-    }
-    val1 <-  rbind(val1, dsvm)
-    saveRDS(val1, paste0(accName,"SVM_accuracy_Districts.rds"))
-    val2 <-  rbind(val2, drf)
-    saveRDS(val2, paste0(accName,"RF_accuracy_Districts.rds"))
-    val3 <-  rbind(val3, dlm)
-    saveRDS(val3, paste0(accName,"LM_accuracy_Districts.rds"))
-    #val <- aggregate(.~District, val[, c("RMSE", "RRMSE", "MAPE", "District")] , mean, na.rm=T)
+  d_svm <- data.frame()
+  d_rf <- data.frame()
+  d_lm <- data.frame()
+  for(i in 1:length(y)){
+    observed_y <- 0
+    svm_y <- rf_y <- 0
+    print(paste0('The year ', y[i], " left out for validation.\n"))
+    # Train model using all data and evaluate at district level
+    train <- subset(temp, year != y[i], select=-c(year,District))
+    valid <- subset(temp, year == y[i])
+    val_p <- subset(valid, select=-c(year,District))
+    observed_y <- valid$yield_MT_ha
+    #1.0 SVM
+    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
+    svm_y <- predict(tuneResult$best.model, val_p)
+    temp1 <- rbind(data.frame(District=valid$District, year=valid$year, yield=svm_y))
+    d_svm <- rbind(d_svm, temp1)
+    #2.0 RF
+    tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
+    rf_y <- predict(tuneRF$best.model, val_p)
+    temp2 <- rbind(data.frame(District=valid$District, year=valid$year, yield=rf_y))
+    d_rf <- rbind(d_rf, temp2)
+    
+    #3.0 LM
+    lm1 <- lm(yield_MT_ha~., data = train)
+    lm_y <- predict(lm1, val_p)
+    temp3 <- rbind(data.frame(District=valid$District, year=valid$year, yield=lm_y))
+    d_lm <- rbind(d_lm, temp3)
   }
-  
-
+  saveRDS(d_svm, paste0(accName,"_SVM_accuracy_Districts.rds"))
+  saveRDS(d_rf, paste0(accName,"_RF_accuracy_Districts.rds"))
+  saveRDS(d_lm, paste0(accName,"_LM_accuracy_Districts.rds"))
+  #val <- aggregate(.~District, val[, c("RMSE", "RRMSE", "MAPE", "District")] , mean, na.rm=T)
 }
+
 #VI only
 models(vi, years = 2011:2022, accName = "ZMB_EO_only")
-#Now include RHEAS metrics and see how accuracy behaves.
+a_svm <- na.omit(readRDS("ZMB_EO_only_SVM_accuracy_Districts.rds"))
+a_svm <- merge(a_svm, ref, by=c("District", "year"))
+a_rf <- na.omit(readRDS("ZMB_EO_only_RF_accuracy_Districts.rds"))
+a_rf <- merge(a_rf, ref, by=c("District", "year"))
+a_lm <- na.omit(readRDS("ZMB_EO_only_LM_accuracy_Districts.rds"))
+a_lm <- merge(a_lm, ref, by=c("District", "year"))
+#VI+RHEAS
 models(subset(data, select=-c(DSSAT_lai, wsgd)), years = 2011:2022, accName = "ZMB_EO_RHEAS")
+b_svm <- na.omit(readRDS("ZMB_EO_RHEAS_SVM_accuracy_Districts.rds"))
+b_svm <- merge(b_svm, ref, by=c("District", "year"))
+b_rf <- na.omit(readRDS("ZMB_EO_RHEAS_RF_accuracy_Districts.rds"))
+b_rf <- merge(b_rf, ref, by=c("District", "year"))
+b_lm <- na.omit(readRDS("ZMB_EO_RHEAS_LM_accuracy_Districts.rds"))
+b_lm <- merge(b_lm, ref, by=c("District", "year"))
 
 
 ###Compute RMSE, MAPE and R2 for RHEAS
+error <- function(df, method){
+  dists <- sort(unique(df$District))
+  dff <- data.frame(matrix(nrow= length(dists), ncol = 6))
+  colnames(dff) <- c("District", "Method","RMSE", "MAPE", "RRMSE", "MBE")
+  dff$Method <- method
+  dff$District <- dists
+  for(i in 1:length(unique(df$District))){
+    temp <- df[df$District==dists[i], ]
+    dff$RMSE[dff$District==dists[i]]  <-  rmse(temp$yield_MT_ha-temp$yield)
+    dff$MAPE[dff$District==dists[i]]  <-  MAPE(temp$yield_MT_ha, temp$yield)
+    dff$RRMSE[dff$District==dists[i]] <-  rrmse(temp$yield_MT_ha, temp$yield)
+    dff$MBE[dff$District==dists[i]]   <-  MBE(temp$yield_MT_ha, temp$yield)
+  }
+  return(dff)
+  
+} #a_rh <- readRDS("ZMB_RHEAS_accuracy_Districts.rds")
+names(rheas)[5] <- "yield"
+e_rh <- error(rheas, "RHEAS")
+e_svm <- error(a_svm, "SVM_VI")
+e_rf <- error(a_rf, "RF_VI")
+e_lm <- error(a_lm, "LM_VI")
+e2_svm <- error(b_svm, "SVM_HI")
+e2_rf <- error(b_rf, "RF_H")
+e2_lm <- error(b_lm, "LM_H")
 
-dists <- sort(unique(rheas$District))
-dff <- data.frame(matrix(nrow= length(dists), ncol = 5))
-colnames(dff) <- c("District","RMSE", "MAPE", "RRMSE", "MBE")
-dff$District <- dists
-for(i in 1:length(unique(rheas$District))){
-  temp <- rheas[rheas$District==dists[i], ]
-  dff$RMSE[dff$District==dists[i]]  <-  rmse(temp$yield_MT_ha-temp$gwad)
-  dff$MAPE[dff$District==dists[i]]  <-  MAPE(temp$yield_MT_ha, temp$gwad)
-  dff$RRMSE[dff$District==dists[i]] <-  rrmse(temp$yield_MT_ha, temp$gwad)
-  dff$MBE[dff$District==dists[i]]   <-  MBE(temp$yield_MT_ha, temp$gwad)
-}
-saveRDS(dff, "ZMB_RHEAS_accuracy_Districts.rds")
+er <- Reduce(function(x, y) merge(x, y, all=TRUE), list(e_rh, e_svm, e_rf, e_lm, e2_svm, e2_rf, e2_lm))
+
+tiff(paste0(root, "Results/ZMB/National_MoA_observed_yields.tif"), units="px", width=2250, height=2250, res=300, pointsize=16)
+par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
+boxplot(MBE~Method, data=er, ylab='Bias')
+abline(h=0, col="red")
+
+
+boxplot(yield_MT_ha~year, data=ref, col=rainbow(length(unique(ref$Year))), 
+        xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+
+dev.off()
+#=======================================================================
+## Spatial Visualization
+#=======================================================================
+library(raster)
+filename <- "D:/Adm data/Zambia/2010 Districts/district_74.shp"
+zmb <- shapefile(filename)
+names(zmb)[3] <- "District"
+zmb$District <- toupper(zmb$District)
+zmb$PROVINCE <- toupper(zmb$PROVINCE)
+zmb <-  merge(zmb[,c("District", "PROVINCE")], e2_rf, by = "District") # duplicateGeoms = TRUE
+library(tmap)
+library(mapview)
+tmap_mode("view")
+map <- tm_shape(zmb, name="RRMSE") +
+  tm_fill("RRMSE", title="RRMSE", breaks = seq(0, 70, 10), textNA = "No data") +
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_layout(legend.outside = TRUE) +
+  tm_format("World")
+map
+
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_RRMSE_Spatial_Distribution.png"))
+
+tmap_mode("view")
+map <- tm_shape(zmb, name="RRMSE") +
+  tm_fill("MBE", palette = "YlOrBr", title="Bias (MT/ha)", breaks = c(-0.3, -0.25, -0.2, -0.15, 0, 0.05, 0.1, 0.15, 0.2), textNA = "No data", midpoint=0) +
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_layout(legend.outside = TRUE) +
+  tm_format("World")
+map
+
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_Bias_Spatial_Distribution.png"))
+
+
+tmap_mode("view")
+map <- tm_shape(zmb, name="RMSE") +
+  tm_fill("RMSE", palette = "YlOrBr", title="RMSE (MT/ha)", breaks = c(0.2,0.6, 0.7, 0.8, 2.0, 2.2), textNA = "No data") +
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_layout(legend.outside = TRUE) +
+  tm_format("World")
+map
+
+
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_RMSE_Spatial_Distribution.png"))
