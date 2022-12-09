@@ -4,58 +4,56 @@ library(dplyr)
 library(reshape2)
 root <- "D:/RCMRD/Data/Yields/"
 metrics <- paste0(root, "metrics/")
-ref <- paste0(root, "Reference/Zambia/MOA/")
+ref <- paste0(root, "Reference/Malawi/MOA/")
 
 #==============================================================================
 #Load 2010-2022 MOA observed yields data
 #==============================================================================
-ref <- read.csv(paste0(ref, "Zambia_District _Maize_Forecasting_2011_2022.csv"), stringsAsFactors =  FALSE)
+ref <- read.csv(paste0(ref, "MALAWI_MOA_MAIZE_Production data.csv"), stringsAsFactors =  FALSE)
 ref$District <- toupper(ref$District)
-ref$Province <- trimws(toupper(ref$Province), which = c("both"))
-sort(unique(ref$Province))
-ref$District <- trimws(toupper(ref$District), which = c("both"))
-names(ref)[7] <- "year"
-ref$District[ref$District=="ITEZHI-TEZHI"] <- "ITEZHI TEZHI"
+ref$Division <- toupper(ref$Division)
+names(ref)[1] <- "year"
+ref$yield_MT_ha <- as.numeric(ref$yield_MT_ha)
+ref$yield_MT_ha[ref$yield_MT_ha>6] <- NA
 
 #png("figs/figure1.png", units="in", width=12, height=12, res=300, pointsize=24)
 #setEPS()
 #postscript(paste0(root, "Results/ZMB/MoA_observed_yields.pdf"), width=12, height=12, pointsize=24)
 
-tiff(paste0(root, "Results/ZMB/National_MoA_observed_yields.tif"), units="px", width=2250, height=2250, res=300, pointsize=16)
+png(paste0(root, "Results/MWI/National_MoA_observed_yields.png"), units="px", width=2250, height=2250, res=300, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 boxplot(yield_MT_ha~year, data=ref, col=rainbow(length(unique(ref$Year))), 
-        xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+        xlab="Year", ylab = "Yield (MT/ha)", main="Malawi MoA Annual Forecasts.")
 
 dev.off()
 
-#Visualize the crop forecasting data from MoA per Province.
+#Visualize the crop forecasting data from MoA per Division
 
-agg <- aggregate(ref[, "yield_MT_ha", drop=FALSE], ref[, c("Province", "year")], mean, na.rm=TRUE)
-agg <- reshape(agg, direction="wide", idvar="Province", timevar="year")
+agg <- aggregate(ref[, "yield_MT_ha", drop=FALSE], ref[, c("Division", "year")], mean, na.rm=TRUE)
+agg <- reshape(agg, direction="wide", idvar="Division", timevar="year")
 colnames(agg) <- gsub("yield_MT_ha.", "", colnames(agg))
 agg <- agg[,-2]
 rownames(agg) <- agg[,1]
 agg <- as.matrix(agg[,-1])#as.matrix(sapply(agg,as.numeric))
-tiff(paste0(root, "Results/ZMB/Provincial_MoA_observed_yields.tif"), units="px", width=3500, height=2250, res=300, pointsize=16)
+png(paste0(root, "Results/MWI/Division_MoA_observed_yields.png"), units="px", width=3500, height=2250, res=300, pointsize=16)
 par(mar=c(4.5,4.0,2,2)) #c(bottom, left, top, right)
 
 #barplot(agg, legend =  rownames(agg), las=2, args.leg=list(cex=1), 
         #xlab="Provinces", ylab = "Yield (MT/ha)", main="Zambia MoA Provinces Forecasts.", cex.axis=0.8) 
-temp <- ref
-library(stringr)
-temp$Province <- str_to_title(temp$Province)
-temp$Province[temp$Province=="North-Western"] <- "NW"
-boxplot(yield_MT_ha~Province, data=temp, col=rainbow(length(unique(temp$Province))), xlab="Provinces", 
-        ylab = "Yield (MT/ha)", main="Zambia MoA Provinces Forecasts.", cex.axis=0.8)
+#temp <- ref
+#library(stringr)
+#temp$Province <- str_to_title(temp$Province)
+#temp$Province[temp$Province=="North-Western"] <- "NW"
+boxplot(yield_MT_ha~Division, data=ref, col=rainbow(length(unique(ref$Division))), xlab="Division", 
+        ylab = "Yield (MT/ha)", main="Malawi MoA Division Forecasts.", cex.axis=0.6)
 dev.off()
 
 #==============================================================================
 ## VIC Spatial-Temporal metrics
 #==============================================================================
-v_t <- readRDS(paste0(root, "metrics/zmb_tamsat_vic_metrics_v1.rds"))
+v_t <- readRDS(paste0(root, "metrics/mwi_25km_tamsat_vic_st_metrics_v1.rds"))
 v_t$District <- toupper(v_t$District)
-v_c <- readRDS(paste0(root, "metrics/zmb_chirps_vic_metrics_v1.rds"))
-v_c$District <- toupper(v_c$District)
+
 #==============================================================================
 ## MODIS/RS Spatial-temporal metrics
 #==============================================================================
@@ -65,7 +63,7 @@ wide2long <- function(df, variable){
 }
 #Indices list; https://www.l3harrisgeospatial.com/docs/canopywatercontent.html#:~:text=Moisture%20Stress%20Index%20(MSI),absorption%20around%201599%20nm%20increases.
 #1.0 EVI
-metric <- paste0(metrics,"zmb/")
+metric <- paste0(metrics,"mwi/")
 temp <- list.files(metric, pattern=glob2rx("*_evi_*"))
 files <- lapply(paste0(metric, temp), read.csv, stringsAsFactors =  FALSE)
 evi <- lapply(files, wide2long, "evi")
@@ -164,7 +162,6 @@ npcri[[1]][1,]
 sipi  <- lapply(sipi, formatDate)
 sipi[[1]][1,]
 
-
 # Now combine the list into one dataframe.
 
 evi <- do.call(rbind.data.frame, evi)
@@ -182,12 +179,10 @@ sipi <- do.call(rbind.data.frame, sipi)
 # Now merge all the remote sensing metrics to one data frame.
 
 evi$evi <- as.numeric(evi$evi)
-n <- do.call("cbind", list(evi, gli=as.numeric(gli[,-c(1:2)]), gndvi=as.numeric(gndvi[,-c(1:2)]), gpp=as.numeric(gpp[,-c(1:2)]), msi=as.numeric(msi[,-c(1:2)]), ndmi=as.numeric(ndmi[,-c(1:2)]), ndvi=as.numeric(ndvi[,-c(1:2)]), npcri=as.numeric(npcri[,-c(1:2)]), sipi=as.numeric(sipi[,-c(1:2)])))
-temp  <- cbind(lai, fpar=fpar[,-c(1:2)])
-temp[, c("lai","fpar")] <- lapply(c("lai","fpar"), function(x) as.numeric(temp[[x]]))
-modis <- merge(n,temp, by=c("District", "date"))
-modis$District[modis$District=="CHIENGI"] <- "CHIENGE"
-modis$District[modis$District=="SHANGOMBO"] <- "SHANG'OMBO"
+n <- do.call("cbind", list(evi, fpar=as.numeric(fpar[,-c(1:2)]),lai=as.numeric(lai[,-c(1:2)]),gli=as.numeric(gli[,-c(1:2)]), gndvi=as.numeric(gndvi[,-c(1:2)]), msi=as.numeric(msi[,-c(1:2)]), ndmi=as.numeric(ndmi[,-c(1:2)]), ndvi=as.numeric(ndvi[,-c(1:2)]), npcri=as.numeric(npcri[,-c(1:2)]), sipi=as.numeric(sipi[,-c(1:2)])))
+gpp$gpp <- as.numeric(gpp$gpp)
+modis <- merge(n, gpp, by=c("District", "date"))
+
 
 ### RS Temporal Index Aggregation 
 
@@ -217,7 +212,7 @@ seasonMean <- function(year, df, seasons=1:2) {
   do.call(rbind, res)  
 }
 
-years <- 2011:2022
+years <- 2012:2021
 temp <- lapply(years, seasonMean, modis, seasons=2)
 rs <- do.call(rbind, temp)
 rs <- rs[!rs$District=="Counties",]
@@ -230,7 +225,7 @@ rs$District <- toupper(rs$District)
 ## DSSAT Spatial-temporal metrics
 #==============================================================================
 path <- paste0(root, "RHEAS/")
-tt <- read.csv(paste0(path, "zambia_tamsat_25km_districts_dssatTable_2012_2022_100kg_v2.csv"), stringsAsFactors =  FALSE)
+tt <- read.csv(paste0(path, "MWI_tamsat_25km_District_dssatTable_2012_2022_100kg_v2.csv"), stringsAsFactors =  FALSE)
 tt$harvest <- as.Date(tt$harvest)
 tt$planting <- as.Date(tt$planting)
 tt$date <- format(tt$harvest, format = "%Y")
@@ -247,6 +242,7 @@ RH_metrics <- function(rh, season){
 }
 
 rh <- RH_metrics(tt, season)
+#rh <- subset(rh, select = - gwad)
 names(rh)[2] <- "year"
 rh$District <- toupper(rh$District)
 
@@ -271,12 +267,11 @@ vc <- subset(vc, select=-season)
 vc[,-c(1,13)] <- apply(vc[,-c(1,13)], 2, minMax)
 names(rh)[4] <- "DSSAT_lai" 
 rh[,-c(1,2)] <- apply(rh[,-c(1,2)], 2, minMax)
-
+names(vc)[13] <- "year"
 df_list <- list(rs[rs$year > 2010,], rh[rh$year > 2010,], vc[vc$year > 2010, ], ref[,c("District", "yield_MT_ha","year")])
 data <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list)
 df_list2 <- list(rs[rs$year > 2010,], ref[,c("District", "yield_MT_ha","year")])
 data <- subset(data, select=-gwad)
-#data <- na.omit(data)
 vi <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list2)
 
 library(randomForest)
@@ -284,6 +279,7 @@ library(ggplot2)
 library(ggthemes)
 library(ggeasy)
 library(dplyr)
+data <- na.omit(data)
 rf = randomForest(yield_MT_ha~., data=subset(data, select = -c(District,year)), importance=TRUE, ntree = 500)
 importance <- importance(rf)
 importance
@@ -296,7 +292,7 @@ rankImportance <- varImportance %>%
   mutate(Rank = paste0('#',dense_rank(desc(Importance))))
 
 #Use ggplot2 to visualize the relative importance of variables
-tiff(paste0(root, "Results/ZMB/ZMB_Feature_importance.tif"), units="px", width=2250, height=2250, res=300, pointsize=16)
+tiff(paste0(root, "Results/MWI/MWI_Feature_importance.tif"), units="px", width=2250, height=2250, res=300, pointsize=16)
 par(mar=c(4.5,4.0,2,2)) #c(bottom, left, top, right) A4 paper size in pixels 3508 x 2480
 
 ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
@@ -308,14 +304,13 @@ ggplot(rankImportance, aes(x = reorder(Variables, Importance),
   scico::scale_fill_scico(palette = "lajolla")+
   labs(x = 'EO Metrics') +
   coord_flip() +
-  ggtitle("Zambia")+
+  ggtitle("Malawi")+
   theme_few(base_size = 20)+
   ggeasy::easy_center_title()
 dev.off()
 ## Select features that have an impact of 10% MSE on prediction
-Notselected <- rankImportance$Variables[rankImportance$Importance < 10]
-Notselected
-data <- subset(data, select=-c(ndvi, wsgd, DSSAT_lai))
+#selected <- rankImportance$Variables[rankImportance$Importance>=12]
+#data <- subset(data, select=selected)
 
 #==============================================================================
 ## Validation
@@ -337,9 +332,10 @@ MAPE <- function (obs, pred){
 }
 
 R_square <- function(obs, pred) {
-  #val <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
-  #val
-  return(cor(obs, pred)^2)
+  d <- obs-mean(pred)
+  val <- 1 - (sum((obs-pred)^2,na.rm=T)/ sum(d^2, na.rm=T))
+  val
+  #return(cor(obs, pred)^2)
 } 
 #Excellent when RRMSE < 10%, Good when RRMSE is between 10% and 20%, Fair when RRMSE is between 20% and 30% and Poor when RRMSE > 30%
 rrmse <- function(obs, pred){
@@ -392,22 +388,21 @@ models <- function(vi, years, accName){
 }
 
 #VI only
-models(vi, years = 2011:2022, accName = "ZMB_EO_only")
-a_svm <- na.omit(readRDS("ZMB_EO_only_SVM_accuracy_Districts.rds"))
+models(vi, years = years, accName = "MWI_EO_only")
+a_svm <- na.omit(readRDS("MWI_EO_only_SVM_accuracy_Districts.rds"))
 a_svm <- merge(a_svm, ref, by=c("District", "year"))
-a_rf <- na.omit(readRDS("ZMB_EO_only_RF_accuracy_Districts.rds"))
+a_rf <- na.omit(readRDS("MWI_EO_only_RF_accuracy_Districts.rds"))
 a_rf <- merge(a_rf, ref, by=c("District", "year"))
-a_lm <- na.omit(readRDS("ZMB_EO_only_LM_accuracy_Districts.rds"))
+a_lm <- na.omit(readRDS("MWI_EO_only_LM_accuracy_Districts.rds"))
 a_lm <- merge(a_lm, ref, by=c("District", "year"))
 #VI+RHEAS
-models(subset(data, select=-c(DSSAT_lai, wsgd)), years = 2011:2022, accName = "ZMB_EO_RHEAS")
-b_svm <- na.omit(readRDS("ZMB_EO_RHEAS_SVM_accuracy_Districts.rds"))
+models(subset(data, select=-wsgd), years = years, accName = "MWI_EO_RHEAS")
+b_svm <- na.omit(readRDS("MWI_EO_RHEAS_SVM_accuracy_Districts.rds"))
 b_svm <- merge(b_svm, ref, by=c("District", "year"))
-b_rf <- na.omit(readRDS("ZMB_EO_RHEAS_RF_accuracy_Districts.rds"))
+b_rf <- na.omit(readRDS("MWI_EO_RHEAS_RF_accuracy_Districts.rds"))
 b_rf <- merge(b_rf, ref, by=c("District", "year"))
-b_lm <- na.omit(readRDS("ZMB_EO_RHEAS_LM_accuracy_Districts.rds"))
+b_lm <- na.omit(readRDS("MWI_EO_RHEAS_LM_accuracy_Districts.rds"))
 b_lm <- merge(b_lm, ref, by=c("District", "year"))
-
 
 ###Compute RMSE, MAPE and R2 for RHEAS
 error <- function(df, method){
@@ -437,75 +432,75 @@ e2_lm <- error(b_lm, "LM-H")
 
 er <- Reduce(function(x, y) merge(x, y, all=TRUE), list(e_rh, e_svm, e_rf, e_lm, e2_svm, e2_rf, e2_lm))
 
-png(paste0(root, "Results/ZMB/ZMB_Model_bias.png"), units="px", width=2350, height=2350, res=300, pointsize=16)
+png(paste0(root, "Results/MWI/MWI_Model_bias.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
-boxplot(MBE~Method, data=er, ylab='Model bias (MT/ha)', main="Zambia")
+boxplot(MBE~Method, data=er[er$RRMSE < 100,], ylab='Model bias (MT/ha)', main="Malawi")
 abline(h=0, col="red")
 dev.off()
 
-png(paste0(root, "Results/ZMB/ZMB_RRMSE.png"), units="px", width=2350, height=2350, res=300, pointsize=16)
+png(paste0(root, "Results/MWI/MWI_RRMSE.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
-boxplot(RRMSE~Method, data=er, ylab='RRMSE (%)', main="Zambia")
-abline(h=0, col="red")
+boxplot(RRMSE~Method, data=er[er$RRMSE < 100,], ylab='RRMSE (%)', main="Malawi")
+abline(h=30, col="red")
 dev.off()
 
-png(paste0(root, "Results/ZMB/ZMB_RMSE.png"), units="px", width=2350, height=2350, res=300, pointsize=16)
+png(paste0(root, "Results/MWI/MWI_RMSE.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
-boxplot(RMSE~Method, data=er, ylab='RMSE (MT/ha)', main="Zambia")
-abline(h=0, col="red")
+boxplot(RMSE~Method, data=er[er$RRMSE < 100,], ylab='RMSE (MT/ha)', main="Malawi")
 dev.off()
-
 tb <- aggregate(.~Method, data=er[,-1], mean)
 
-write.csv(tb, paste0(root, "Results/ZMB/ZMB_accuracy.csv"))
+write.csv(tb, paste0(root, "Results/MWI/MWI_accuracy.csv"))
+
 #=======================================================================
 ## Spatial Visualization
 #=======================================================================
 library(raster)
-filename <- "D:/Adm data/Zambia/2010 Districts/district_74.shp"
+filename <- "D:/Adm data/Malawi/gadm40_MWI_1.shp"
 zmb <- shapefile(filename)
-names(zmb)[3] <- "District"
+names(zmb)[13] <- "District"
 zmb$District <- toupper(zmb$District)
-zmb$PROVINCE <- toupper(zmb$PROVINCE)
-zmb <-  merge(zmb[,c("District", "PROVINCE")], e2_rf, by = "District") # duplicateGeoms = TRUE
+zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
 library(tmap)
 library(mapview)
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RRMSE") +
-  tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 70, 10), textNA = "No data") +
+  tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 61, 10), textNA = "No data") +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
-  tm_layout(panel.label.size=6, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('left', 'top'))#+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
 map
 
-tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_RRMSE_Spatial_Distribution.png"))
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RRMSE_Spatial_Distribution.png"))
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="MBE") +
-  tm_fill("MBE", palette = "YlOrBr", title="Bias (MT/ha)", breaks = c(-0.3, -0.25, -0.2, -0.15, 0,  0.1,  0.2), textNA = "No data", midpoint=0) +
+  tm_fill("MBE", palette = "YlOrBr", title="Bias (MT/ha)", textNA = "No data", midpoint=0) +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
-  tm_layout(panel.label.size=6, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('left', 'top'))#+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
 map
 
-tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_Bias_Spatial_Distribution.png"))
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_Bias_Spatial_Distribution.png"))
 
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RMSE") +
-  tm_fill("RMSE", palette = "YlOrBr", title="RMSE (MT/ha)", breaks = c(0.2,0.6, 0.7, 0.8, 2.0, 2.2), textNA = "No data") +
+  tm_fill("RMSE", palette = "YlOrBr", title="RMSE (MT/ha)", breaks = seq(0.2,1.2,0.2), textNA = "No data") +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
-  tm_layout(panel.label.size=6, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('left', 'top'))#+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
 map
 
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RMSE_Spatial_Distribution.png"))
 
-tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_RMSE_Spatial_Distribution.png"))
-
-zmb <-  merge(zmb[,c("District", "PROVINCE")], b_svm[b_svm$year==2022,], by = "District") # duplicateGeoms = TRUE
+temp <- b_rf
+temp <- aggregate(yield~District+year, data=temp, mean, na.rm=T)
+zmb <-  merge(zmb[,"District"], temp[temp$year==2021,], by = "District") #duplicateGeoms = TRUE 
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="Yield") +
-  tm_fill("yield", palette = "YlOrBr", title="2022 Yield (MT/ha)", breaks = seq(0,4, 1), textNA = "No data") +
+  tm_fill("yield", palette = "YlOrBr", title="2021 Yield (MT/ha)", breaks = seq(0,3.5, 1), textNA = "No data") +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
-  tm_layout(panel.label.size=6, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('left', 'top'))#+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
 map
 
-tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/ZMB/ZMB_SVM_Yield_Spatial_Distribution.png"))
+
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RF_Yield_Spatial_Distribution.png"))
