@@ -460,9 +460,37 @@ filename <- "D:/Adm data/Malawi/gadm40_MWI_1.shp"
 zmb <- shapefile(filename)
 names(zmb)[13] <- "District"
 zmb$District <- toupper(zmb$District)
-zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
 library(tmap)
 library(mapview)
+
+zmb <-  merge(zmb[,"District"], e_rh, by = "District") 
+tmap_mode("plot")
+map <- tm_shape(zmb, name="RMSE") +
+  tm_fill("RMSE", title="RMSE", textNA = "No data") +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RHEAS_RMSE_Spatial_Distribution.png"))
+
+tmap_mode("plot")
+map <- tm_shape(zmb, name="RRMSE") +
+  tm_fill("RRMSE", title="RRMSE", textNA = "No data") +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RHEAS_RRMSE_Spatial_Distribution.png"))
+
+tmap_mode("plot")
+map <- tm_shape(zmb, name="MBE") +
+  tm_fill("MBE", title="MBE", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+map
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RHEAS_Mean_Bias_Error_Spatial_Distribution.png"))
+
+### Best ML Model
+
+zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RRMSE") +
   tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 61, 10), textNA = "No data") +

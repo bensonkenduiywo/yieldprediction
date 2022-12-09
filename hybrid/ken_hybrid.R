@@ -399,7 +399,6 @@ b_rf <- merge(b_rf, ref, by=c("District", "year"))
 b_lm <- na.omit(readRDS("KEN_EO_RHEAS_LM_accuracy_Districts.rds"))
 b_lm <- merge(b_lm, ref, by=c("District", "year"))
 
-
 ###Compute RMSE, MAPE and R2 for RHEAS
 error <- function(df, method){
   dists <- sort(unique(df$District))
@@ -451,13 +450,41 @@ write.csv(tb, paste0(root, "Results/KEN/KEN_accuracy.csv"))
 ## Spatial Visualization
 #=======================================================================
 library(raster)
-filename <- "D:/Adm data/Kenya_counties_2011/Kenya_maize_counties_dd.shp"
+filename <- "D:/Adm data/Kenya_counties_2011/Kenya_county_dd.shp"
 zmb <- shapefile(filename)
 names(zmb)[4] <- "District"
-zmb$District <- toupper(zmb$District)
-zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
 library(tmap)
 library(mapview)
+zmb$District <- toupper(zmb$District)
+zmb <-  merge(zmb[,"District"], e_rh, by = "District") 
+tmap_mode("plot")
+map <- tm_shape(zmb, name="RMSE") +
+  tm_fill("RMSE", title="RMSE", textNA = "No data") +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RHEAS_RMSE_Spatial_Distribution.png"))
+
+tmap_mode("plot")
+map <- tm_shape(zmb, name="RRMSE") +
+  tm_fill("RRMSE", title="RRMSE", textNA = "No data") +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RHEAS_RRMSE_Spatial_Distribution.png"))
+
+tmap_mode("plot")
+map <- tm_shape(zmb, name="MBE") +
+  tm_fill("MBE", title="MBE", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
+  tm_text("District", size = 0.4, remove.overlap = TRUE)+
+  tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+map
+tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RHEAS_Mean_Bias_Error_Spatial_Distribution.png"))
+
+## Random Forest
+#=========================================================================
+zmb$District <- toupper(zmb$District)
+zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RRMSE") +
   tm_fill("RRMSE", title="RRMSE", breaks = seq(0, 70, 15), textNA = "No data") +
@@ -478,7 +505,6 @@ map <- tm_shape(zmb, name="MBE") +
 map
 
 tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_Bias_Spatial_Distribution.png"))
-
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RMSE") +
