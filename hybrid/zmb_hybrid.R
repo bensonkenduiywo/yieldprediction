@@ -369,12 +369,12 @@ models <- function(vi, years, accName){
     val_p <- subset(valid, select=-c(year,District))
     observed_y <- valid$yield_MT_ha
     #1.0 SVM
-    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5)), kernel="radial" )
+    tuneResult <- tune.svm(yield_MT_ha~.,  data = train, epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5), kernel="radial" )#tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5)), kernel="radial" )
     svm_y <- predict(tuneResult$best.model, val_p)
     temp1 <- rbind(data.frame(District=valid$District, year=valid$year, yield=svm_y))
     d_svm <- rbind(d_svm, temp1)
     #2.0 RF
-    tuneRF <- RF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50))#<- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
+    tuneRF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50))#<- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
     rf_y <- predict(tuneRF$best.model, val_p)
     temp2 <- rbind(data.frame(District=valid$District, year=valid$year, yield=rf_y))
     d_rf <- rbind(d_rf, temp2)
