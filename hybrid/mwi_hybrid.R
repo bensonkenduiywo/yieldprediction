@@ -365,12 +365,12 @@ models <- function(vi, years, accName){
     val_p <- subset(valid, select=-c(year,District))
     observed_y <- valid$yield_MT_ha
     #1.0 SVM
-    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
+    tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5)), kernel="radial" )
     svm_y <- predict(tuneResult$best.model, val_p)
     temp1 <- rbind(data.frame(District=valid$District, year=valid$year, yield=svm_y))
     d_svm <- rbind(d_svm, temp1)
     #2.0 RF
-    tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
+    tuneRF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50)) #<- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = seq(100, 500))) 
     rf_y <- predict(tuneRF$best.model, val_p)
     temp2 <- rbind(data.frame(District=valid$District, year=valid$year, yield=rf_y))
     d_rf <- rbind(d_rf, temp2)
@@ -482,7 +482,7 @@ tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RHEA
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="MBE") +
-  tm_fill("MBE", title="MBE", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
+  tm_fill("MBE", title="MBE (MT/ha)", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
   tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+map
 map
@@ -502,7 +502,7 @@ tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/MWI/MWI_RRMS
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="MBE") +
-  tm_fill("MBE", palette = "YlOrBr", title="Bias (MT/ha)", textNA = "No data", midpoint=0) +
+  tm_fill("MBE", palette = "YlOrBr", title="MBE (MT/ha)", textNA = "No data", midpoint=0) +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
   tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))#+
 map

@@ -18,6 +18,7 @@ png(paste0(root, "Results/RRMSE.png"), units="px", width=1900, height=1900, res=
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 
 barplot(t(rrmse), beside=T, ylab = "RRMSE (%)", las=2, col=terrain.colors(3), legend =  rownames(t(rrmse)),  args.leg=list(cex=1))
+abline(h=30, lty=5, col='red')
 dev.off()
 
 ###NETX CHALENGE ONE MODEL in ALL COUNTRIES.

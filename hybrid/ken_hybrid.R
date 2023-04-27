@@ -30,11 +30,8 @@ r1$yield_MT_ha <- r1$Yield_MT/r1$area_ha
 ref <- rbind(ref, r1)
 ref$District <- toupper(ref$District)
 
-#png("figs/figure1.png", units="in", width=12, height=12, res=300, pointsize=24)
-#setEPS()
-#postscript(paste0(root, "Results/KEN/MoA_observed_yields.pdf"), width=12, height=12, pointsize=24)
-
 png(paste0(root, "Results/KEN/National_MoA_observed_yields.png"), units="px", width=2250, height=2250, res=300, pointsize=16)
+#pdf(paste0(root, "Results/KEN/National_MoA_observed_yields.pdf"), width=7.5, height=7.5, pointsize=24)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 boxplot(yield_MT_ha~year, data=ref, col=rainbow(length(unique(ref$Year))), 
         xlab="Year", ylab = "Yield (MT/ha)", main="KEN MoA Annual Forecasts.")
@@ -45,10 +42,11 @@ dev.off()
 
 agg <- aggregate(ref[, "yield_MT_ha", drop=FALSE], ref[, c("District", "year")], mean, na.rm=TRUE)
 png(paste0(root, "Results/KEN/County_MoA_observed_yields.png"), units="px", width=3500, height=2250, res=300, pointsize=16)
+#pdf(paste0(root, "Results/KEN/County_MoA_observed_yields.pdf"), width=12, height=7.5, pointsize=16)
 par(mar=c(4.5,4.0,2,2)) #c(bottom, left, top, right)
 
 boxplot(yield_MT_ha~District, data=agg, col=rainbow(length(unique(agg$District))), xlab="County", 
-        ylab = "Yield (MT/ha)", main="Zambia MoA Provinces Forecasts.", cex.axis=0.8)
+        ylab = "Yield (MT/ha)", main="Kenya MoA Provinces Forecasts.", cex.axis=0.8)
 dev.off()
 
 #==============================================================================
@@ -264,7 +262,7 @@ rh[,-c(1,2)] <- apply(rh[,-c(1,2)], 2, minMax)
 
 df_list <- list(rs, rh, vc, ref[,c("District", "yield_MT_ha","year")])
 data <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list)
-df_list2 <- list(rs[rs$year > 2010,], ref[,c("District", "yield_MT_ha","year")])
+df_list2 <- list(rs[rs$year >= 2010,], ref[,c("District", "yield_MT_ha","year")])
 data <- subset(data, select=-gwad)
 vi <- Reduce(function(x, y) merge(x, y, by=c("District","year")), df_list2)
 
@@ -286,6 +284,7 @@ rankImportance <- varImportance %>%
 
 #Use ggplot2 to visualize the relative importance of variables
 png(paste0(root, "Results/KEN/KEN_Feature_importance.png"), units="px", width=2250, height=2250, res=300, pointsize=16)
+pdf(paste0(root, "Results/KEN/KEN_Feature_importance.pdf"), width=7.5, height=7.5, pointsize=16)
 par(mar=c(4.5,4.0,2,2)) #c(bottom, left, top, right) A4 paper size in pixels 3508 x 2480
 
 ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
@@ -428,18 +427,21 @@ e2_lm <- error(b_lm, "LM-H")
 er <- Reduce(function(x, y) merge(x, y, all=TRUE), list(e_rh, e_svm, e_rf, e_lm, e2_svm, e2_rf, e2_lm))
 
 png(paste0(root, "Results/KEN/KEN_Model_bias.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
+pdf(paste0(root, "Results/KEN/KEN_Model_bias.pdf"), width=9.3, height=9.3, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 boxplot(MBE~Method, data=er, ylab='Model bias (MT/ha)', main="Kenya")
 abline(h=0, col="red")
 dev.off()
 
 png(paste0(root, "Results/KEN/KEN_RRMSE.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
+pdf(paste0(root, "Results/KEN/KEN_RRMSE.pdf"), width=9.3, height=9.3, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 boxplot(RRMSE~Method, data=er[er$RRMSE <=100,], ylab='RRMSE (%)', main="Kenya")
 abline(h=30, col="red")
 dev.off()
 
 png(paste0(root, "Results/KEN/KEN_RMSE.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
+#pdf(paste0(root, "Results/KEN/KEN_RMSE.pdf"), width=9.3, height=9.3, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
 boxplot(RMSE~Method, data=er, ylab='RMSE (MT/ha)', main="Kenya")
 dev.off()
@@ -453,10 +455,11 @@ library(raster)
 filename <- "D:/Adm data/Kenya_counties_2011/Kenya_county_dd.shp"
 zmb <- shapefile(filename)
 names(zmb)[4] <- "District"
+bdy0 <- shapefile("D:/Adm data/Kenya_counties_2011/Kenya_Country_Boundary.shp") #geodata::gadm('KEN', path = root, level = 0)
 library(tmap)
 library(mapview)
 zmb$District <- toupper(zmb$District)
-zmb <-  merge(zmb[,"District"], e_rh, by = "District") 
+zmb <-  merge(zmb[,"District"], e_rh, by = "District", all.x=T) 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RMSE") +
   tm_fill("RMSE", title="RMSE", textNA = "No data") +
@@ -475,7 +478,7 @@ tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RHEA
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="MBE") +
-  tm_fill("MBE", title="MBE", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
+  tm_fill("MBE", title="MBE (MT/ha)", palette = "YlOrBr", textNA = "No data", midpoint = 0) +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
   tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
 map
@@ -484,7 +487,7 @@ tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RHEA
 ## Random Forest
 #=========================================================================
 zmb$District <- toupper(zmb$District)
-zmb <-  merge(zmb[,"District"], e2_rf, by = "District") # duplicateGeoms = TRUE
+zmb <-  merge(zmb[,"District"], e2_rf, by = "District", all.x=T) # duplicateGeoms = TRUE
 tmap_mode("plot")
 map <- tm_shape(zmb, name="RRMSE") +
   tm_fill("RRMSE", title="RRMSE", breaks = seq(0, 70, 15), textNA = "No data") +
@@ -498,7 +501,7 @@ tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RRMS
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="MBE") +
-  tm_fill("MBE", palette = "YlOrBr", title="Bias (MT/ha)", breaks = seq(-0.08,0.12, 0.05), textNA = "No data", midpoint=0) +
+  tm_fill("MBE", palette = "YlOrBr", title="MBE (MT/ha)", breaks = seq(-0.08,0.12, 0.05), textNA = "No data", midpoint=0) +
   tm_text("District", size = 0.4, remove.overlap = TRUE)+
   tm_layout(panel.label.size=6, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
   #tm_format("World")
@@ -516,7 +519,7 @@ map
 
 tmap_save(map, scale =1.6, dpi= 600, filename=paste0(root, "Results/KEN/KEN_RMSE_Spatial_Distribution.png"))
 
-zmb <-  merge(zmb[,"District"], b_rf[b_svm$year==2018,], by = "District") # duplicateGeoms = TRUE
+zmb <-  merge(zmb[,"District"], b_rf[b_svm$year==2018,], by = "District", all.x=T) # duplicateGeoms = TRUE
 
 tmap_mode("plot")
 map <- tm_shape(zmb, name="Yield") +
