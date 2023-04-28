@@ -1,0 +1,327 @@
+---
+title: "Zambia MAIZE Forescasts"
+author: "Dr. -Ing. MISK Benson Kenduiywo"
+csl: "apa-6th-edition.csl"
+output: 
+   html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, global_options, tidy = TRUE,echo=TRUE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60))
+opts_knit$set(global.par = TRUE)
+```
+
+## Reference data
+
+Load Zambia's ministry of agriculture maize forecasts data as reference.
+
+```{r ref1, echo=FALSE, warning=FALSE, message=FALSE}
+rm(list = ls(all=TRUE))
+unlink(".RData")
+root <- "D:/RCMRD/Data/Yields/"
+r.file <- paste0(root, "Reference/Zambia/MOA/Zambia_District _Maize_Forecasting_2011_2022.csv")
+```
+
+
+Load data
+
+```{r ref40, echo=FALSE, warning=FALSE, message=FALSE}
+ref <- read.csv(r.file, stringsAsFactors =  FALSE)
+names(ref)
+```
+
+Convert District and province names to upper case.
+
+```{r ref5, echo=FALSE, warning=FALSE, message=FALSE}
+ref$Province <- trimws(toupper(ref$Province), which = c("both"))
+sort(unique(ref$Province))
+ref$District <- trimws(toupper(ref$District), which = c("both"))
+kable(head(sort(unique(ref$District))), caption="Districts")
+```
+
+Visualize the crop forecasting data from MoA per year.
+
+```{r par, echo=FALSE, warning=FALSE, message=FALSE}
+par(mar=c(2,2,2,2)) #c(bottom, left, top, right)
+```
+
+
+```{r ref3}
+
+boxplot(yield_MT_ha~Year, data=ref, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+
+```
+
+Visualize the crop forecasting data from MoA per Province.
+
+```{r ref4, echo=FALSE, warning=FALSE, message=FALSE}
+
+agg <- ref#aggregate(ref[,"yield_MT_ha", drop=FALSE], ref[, c("Province","District","Year"), drop=FALSE], sum, na.rm=TRUE)
+agg$Province <- substr(agg$Province,start=1,stop=4)
+agg <- na.omit(agg)
+boxplot(yield_MT_ha~Province, data=agg, col=rainbow(length(unique(agg$Province))), xlab="Provinces", ylab = "Yield (MT/ha)", main="Zambia MoA Provinces Forecasts.", cex.axis=0.8) #horizontal = T, las=1
+
+```
+
+
+Aggregate MoA forecasts per district.
+
+```{r ref10, echo=FALSE, warning=FALSE, message=FALSE}
+ref.agg <- aggregate(ref[,"yield_MT_ha", drop=FALSE], ref[, c("District","Year"), drop=FALSE], mean, na.rm=TRUE)
+```
+
+
+## RHEAS simulated yields
+
+Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
+
+```{r rh1, echo=FALSE, warning=FALSE, message=FALSE}
+tt <- read.csv(paste0(root, "RHEAS/zambia_chirps_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+tt$harvest <- as.Date(tt$harvest)
+tt$planting <- as.Date(tt$planting)
+tt$date <- format(tt$harvest, format = "%Y")
+names(tt)[3] <- "District"
+tt$District[tt$District=="CHIENGI"] <- "CHIENGE"
+tt$District[tt$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+```{r ss, echo=FALSE, warning=FALSE, message=FALSE}
+ss <- read.csv(paste0(root, "RHEAS/zambia_tamsat_dssatTable_1990_2022.csv"), stringsAsFactors =  FALSE)
+ss$harvest <- as.Date(ss$harvest)
+ss$planting <- as.Date(ss$planting)
+ss$date <- format(ss$harvest, format = "%Y")
+names(ss)[3] <- "District"
+ss$District[ss$District=="CHIENGI"] <- "CHIENGE"
+ss$District[ss$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+## Production forecast and RHEAS metrics aggregagation
+
+Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
+
+The maize growing season in Zambia starts from October to end of June. So we will aggregate the metrics and forecast with this condition using the function `RH_metrics`.
+
+```{r rh2, echo=FALSE, warning=FALSE, message=FALSE}
+RH_metrics <- function(rh, sStart, sEnd){
+  rh <- subset(rh, format(as.Date(rh$planting), "%m") >= sStart & format(as.Date(rh$harvest), "%m") <= sEnd)
+  rh <- aggregate(rh[,c("wsgd","lai","gwad")], rh[,c("District","date")], mean, na.rm=T)
+  return(rh)
+}
+
+rh <- RH_metrics(tt, sStart ="10", sEnd = "06")
+rs <- RH_metrics(ss, sStart ="10", sEnd = "06")
+```
+
+Convert RHEAS yields from kg/ha to MT/ha.
+
+```{r rh3, echo=FALSE, warning=FALSE, message=FALSE}
+rh$gwad <- rh$gwad/1000
+rs$gwad <- rs$gwad/1000
+```
+
+
+## Visualization
+
+Add shapefile for visualization.
+
+```{r, v1, echo=FALSE, warning=FALSE, message=FALSE}
+library(raster)
+filename <- "D:/Adm data/Zambia/gadm36_ZMB_2.shp"
+zmb <- shapefile(filename)
+names(zmb)[14] <- "District"
+zmb$District[zmb$District=="CHIENGI"] <- "CHIENGE"
+zmb$District[zmb$District=="SHANGOMBO"] <- "SHANG'OMBO"
+```
+
+
+Check and format District names to be consistent in both the RHEAS and administrative boundaries.
+
+```{r v2, echo=FALSE, warning=FALSE, message=FALSE}
+#RHEAS
+c <- sort(unique(rh$District))
+c[!c %in% sort(unique(zmb$District))]
+#MoA Forecasts
+c <- sort(unique(ref$District))
+c[!c %in% sort(unique(zmb$District))]
+```
+
+ Merge RHEAS and Admin data.
+ 
+```{r v3, echo=FALSE, warning=FALSE, message=FALSE}
+#zmb <-  merge(zmb[,"District"], rh[rh$date=="2022",], by = "District")
+zmb <-  merge(zmb[,"District"], rs, by = "District")
+path <- "D:/RCMRD/Code/yieldprediction"
+shapefile(zmb[,c("District", "wsgd", "lai","gwad")], paste0(path,"/zambia/Zambia_Maize_Forecasts.shp"),overwrite=T)
+
+```
+
+
+Visualize RHEAS predicted yields spatially.
+
+```{r v4, echo=FALSE, warning=FALSE, message=FALSE}
+library(tmap)
+library(mapview)
+tmap_mode("view") #breaks = seq(2,4.1,0.1)
+map_a <- tm_shape(zmb, name="Average yield (MT/ha) per District") +
+  tm_polygons("gwad", id="gwad",  title="Maize yield (MT/ha) 2022") +
+  tm_text("District", size = 0.75)+
+  tm_layout(title.size =5, panel.label.size=6)+
+  tm_format("World")
+map_a
+
+#lf <- tmap_leaflet(map_a)
+#mapshot(lf, file = "D:/RCMRD/Presentations/ISPRS_2022/Yields_2022_MODIS.png")
+
+```
+
+
+## Planting/Harvest date detection
+
+Lets Evaluate earliest Planting and harvest dates or months over the years according to the model's detection.
+
+```{r p1, echo=FALSE, warning=FALSE, message=FALSE}
+
+plantHarvest <- function(df, year){
+  temp <- subset(df, date==year)
+  d <- sort(unique(temp$District))
+  mat <- matrix(, nrow = length(d), ncol = 4)
+  for(i in 1:length(d)){
+    dist <- subset(temp, District=d[i])
+    dist$planting <- as.character(dist$planting)
+    dist$harvest <- as.character(dist$harvest)
+    p1 <- min(dist$planting)
+    p2 <- max(dist$planting)
+    h1 <- min(dist$harvest)
+    h2 <- max(dist$harvest)
+    mat[i, ] <- c(p1,p2,h1,h2)
+  }
+  #row.names(mat) <- sort(unique(temp$District))
+  mat <- as.data.frame(mat)
+  mat$District <- sort(unique(temp$District))
+  names(mat)[1] <- "Plant_Early"
+  names(mat)[2] <- "Plant_Late"
+  names(mat)[3] <- "Harvest_Early"
+  names(mat)[4] <- "Harvest_Late"
+  return(mat)
+}
+
+temp <- plantHarvest(tt, 2022)
+kable(head(temp))
+```
+
+
+## Validation
+
+Compare RHEAS with MoA forecasts.
+
+First check consistency in Districts names.
+
+```{r val1, echo=FALSE, warning=FALSE, message=FALSE}
+c <- sort(unique(rs$District))
+c[!c %in% sort(unique(ref.agg$District))]
+```
+
+Merge the MoA forecasts with RHEAS ones by year and District.
+
+```{r val2, echo=FALSE, warning=FALSE, message=FALSE}
+baseYear <- 2022
+x <- rh[rh$date>=baseYear,]
+names(x)[2] <- "Year"
+y <- ref.agg[ref.agg$Year>=baseYear,]
+dff <-  merge(x, y, by = c("District", "Year"))
+z <- rs[rs$date>=baseYear,]
+names(z)[2] <- "Year"
+dfff <- merge(z, y, by = c("District", "Year"))
+
+```
+
+Plot RHEAS forecast versus MoA forecasts.
+
+```{r val3, echo=FALSE, warning=FALSE, message=FALSE}
+dff <- dff[dff$yield_MT_ha <=4.5,]
+x11()
+plot(gwad~yield_MT_ha, data=dff, pch=16, xlim = c(0,4.5), ylim = c(0,4.5), xlab="MoA Forecasts (MT/ha)", ylab="RHEAS Forecasts (MT/ha)")
+abline(0,1, lwd=2, col="red")
+```
+
+
+Plot the two datasets trends.
+
+```{r val4, echo=FALSE, warning=FALSE, message=FALSE}
+dff.agg <- aggregate(dff[,c("yield_MT_ha", "gwad"), drop=FALSE], dff[, "Year", drop=FALSE], mean, na.rm=TRUE)
+
+x11()
+plot(dff.agg$Year, dff.agg$yield_MT_ha, type="l", lwd=2, col="red", ylim = c(0,4), ylab="Maize Forecasts (MT/ha)", xlab="Year")
+lines(dff.agg$Year, dff.agg$gwad, col="blue", lwd=2)
+legend("topright", c("MoA", "RHEAS"), col=c("red","blue"), lty = 1, lwd=2)
+
+```
+
+
+
+```{r test, echo=FALSE, warning=FALSE, message=FALSE}
+par(mfrow=c(1,2))
+dff$District <- substr(dff$District, start=1,stop=3)
+boxplot(yield_MT_ha~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", main="Zambia MoA Annual Forecasts.")
+
+boxplot(gwad~Year, data=dff, col=rainbow(length(unique(ref$Year))), xlab="Year", ylab = "Yield (MT/ha)", ylim=c(0,4.5), main="RHEAS Annual Forecasts.")
+```
+
+We can use the Root Mean Square Error (RMSE)  and mean absolute percentage error (MAPE) to evaluate the models accuracy. RMSE is given as:
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}},
+$$
+where $\widehat{y}$  and $y$ are predicted yields and observed yields respectively while *n* is the number of fitted points.
+
+```{r rmse, echo=FALSE, warning=FALSE, message=FALSE}
+rmse <- function(error){
+  sqrt(mean(error^2))
+}
+
+```
+
+Compute RMSE.
+
+```{r val5, echo=FALSE, warning=FALSE, message=FALSE}
+
+cat("CHIRPS ", rmse(dff$gwad-dff$yield_MT_ha), "\n")
+cat("TAMSAT ", rmse(dfff$gwad-dfff$yield_MT_ha), "\n")
+```
+
+
+What about Relative root mean square error (RRMSE):
+
+$$
+\text{RRMSE} = \frac{\sqrt{\frac{1}{n} \sum_{i=1}^n y-\widehat{y}}}{\frac{1}{n} \sum_{i=1}^n y},
+$$
+
+
+```{r rrmse, echo=FALSE, warning=FALSE, message=FALSE}
+rrmse <- function(predicted, observed){
+  error <- observed - predicted
+  re <- sqrt(mean(error^2))/mean(observed)
+  return(re*100)
+}
+```
+
+
+Compute RRMSE.
+
+```{r val6, echo=FALSE, warning=FALSE, message=FALSE}
+
+cat("CHIRPS RRMSE ", rrmse(dff$gwad, dff$yield_MT_ha), "\n")
+cat("TAMSAT RRMSE ", rrmse(dfff$gwad, dfff$yield_MT_ha), "\n")
+```
+
+According to [Li et al. 2013](ttp://dx.doi.org/10.1016/j.enconman.2013.03.004), the performance of the model is excellent when RRMSE < 10%; good if 10\% < RRMSE < 20\%; fair if 20\% < RRMSE < 30\%; and poor if RRMSE ≥ 30\%.

@@ -1,0 +1,229 @@
+---
+title: "Tanzania Maize Yield Forecast"
+author: "Dr. -Ing. MISK Benson Kenduiywo"
+csl: "apa-6th-edition.csl"
+output: 
+   html_document:
+    toc: true
+    toc_float: true
+    toc_collapsed: true
+    toc_depth: 3
+    number_sections: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60))
+opts_knit$set(global.par = TRUE)
+```
+
+## RHEAS forecasts
+
+Load and aggregate RHEAS simulated Leaf Area Index (LAI), Water stress and Grain Weight Average Dry (GWAD) across different ensembles. Extract year from dates (we will use harvest year).
+
+```{r rh1, echo=FALSE, message=F}
+rm(list = ls(all=TRUE))
+unlink(".RData")
+root <- "D:/RCMRD/Data/Yields/"
+
+formatdf <- function(filename){
+  tt <- read.csv(filename, stringsAsFactors =  FALSE)
+  tt$harvest <- as.Date(tt$harvest)
+  tt$planting <- as.Date(tt$planting)
+  tt$date <- format(tt$harvest, format = "%Y")
+  names(tt)[3] <- "Region"
+  tt$Region <- toupper(tt$Region)
+  return(tt)
+}
+
+bi <- formatdf(paste0(root, "RHEAS/tanzania_tamsat_25km_districts_bimod_dssatTable_2000_2022_100kg.csv"))
+
+un <- formatdf(paste0(root, "RHEAS/tanzania_tamsat_25km_districts_unimod_dssatTable_2000_2022_100kg.csv"))
+```
+
+
+## Metrics aggregagation
+
+Aggregate RHEAS production forecasts and metrics with respect to Districts maize growing calendar. 
+
+We assume three maize growing seasons in Tanzania:
+
+1) Season 1: OND (SRSD) October -- February/March.
+2) Season 2: MAM March -- September. 
+3) Season 3: Long Rain (LR) November -- April/August 
+
+So we will aggregate the metrics and yield forecast per district with this condition using the function `RH_metrics`.
+
+```{r rh2, echo=F, message=F}
+RH_metrics <- function(rh, sStart, sEnd, season){
+  rh <- subset(rh, format(as.Date(rh$planting), "%m") %in% sStart & format(as.Date(rh$harvest), "%m") %in% sEnd)
+  rh$Season <- season
+  rh <- aggregate(rh[,c("wsgd","lai","gwad"), drop=FALSE], rh[,c("Region","date", "Season"), drop=FALSE], mean, na.rm=T)
+  
+  
+  return(rh)
+}
+# Unimodal season:  October--August (LR)
+sStart <- c("09", "10", "11", "12", "01","02", "03", "04")
+sEnd <- c("02", "03", "04", "05", "06", "07", "08")
+rh_u <- RH_metrics(un, sStart, sEnd, "LR")
+
+#Bimodal season A (OND): September--March
+sStart <- c("09", "10", "11")
+sEnd <- c("01","02", "03")
+rh_a <- RH_metrics(bi, sStart=sStart, sEnd=sEnd, "OND")
+
+#Bimodal season B (MAM): January--August
+sStart <- c("01", "02", "03", "04")
+sEnd <- c("05", "06", "07", "08")
+rh_b <- RH_metrics(bi, sStart=sStart, sEnd=sEnd, "MAM")
+
+# Long Rain
+#lr <- aggregate(tt[,c("wsgd","lai","gwad"), drop=FALSE], tt[,c("Region","date"), drop=FALSE], mean, na.rm=T)
+#Merge all
+rh <- do.call(rbind, list(rh_u, rh_a, rh_b))
+
+```
+
+Convert RHEAS yields from kg/ha to MT/ha.
+
+```{r rh3, echo=FALSE}
+rh$gwad <- rh$gwad/1000
+#Remove values along the lake region
+rh$gwad[rh$Region=="LAKE VICTORIA"] <- NA
+```
+
+
+## Visualization
+
+Add shapefile for visualization.
+
+```{r, v1, echo=F, message=F}
+library(raster)
+filename <- "D:/Adm data/Tanzania/gadm36_TZA_2.shp"
+tza <- shapefile(filename)
+names(tza)[7] <- "Region"
+tza$Region <- toupper(tza$Region)
+```
+
+
+Check and format Region names to be consistent in both the RHEAS and administrative boundaries. Here we check which regions are mission from RHEAS predictions.
+
+```{r v2, echo=F, message=F}
+c <- sort(unique(tza$Region))
+c[!c %in% sort(unique(rh$Region))]
+```
+
+ Merge RHEAS and Admin data.
+ 
+```{r v3, echo=F, message=F}
+year <- 2022
+temp <- rh[, c("Region", "date", "gwad", "lai", "wsgd", "Season")]
+temp <- reshape(temp, idvar = c("Region","date"), timevar = "Season", v.names  = c("gwad", "lai", "wsgd"),direction = "wide")
+tza <-  merge(tza[,c("Region", 'NAME_1')], temp[temp$date==year,], by = "Region", duplicateGeoms=TRUE)
+#path <- "D:/RCMRD/Code/yieldprediction"
+#shapefile(tza[,c("Region", "wsgd", "lai","gwad", "date","Season")], paste0(path,"/tanzania/tanzania_Maize_Forecasts.shp"),overwrite=T)
+
+```
+
+
+### Map of yields
+
+Visualize RHEAS predicted yields spatially for *all seasons*. 
+
+```{r v4, echo=F, message=F}
+library(tmap)
+library(mapview)
+tmap_mode("view")
+ map_a <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
+  tm_fill(col=c("gwad.OND", "gwad.MAM", "gwad.LR", "lai.LR"),   title=c("OND Yield (MT/ha)", "MAM Yield (MT/ha)", "LR Yield (MT/ha)", "LR LAI"), textNA = "No data", breaks = seq(0.3,4.5,1)) +
+   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
+#   #tm_text("District", size = 0.75)+
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+ map_a
+
+#lf <- tmap_leaflet(map_a)
+#mapshot(map_a, file = paste0(getwd(), "/TZ_Yields_2022.png"), remove_controls = c("homeButton", "layersControl"))
+tmap_save(map_a, scale =1.6, dpi= 300, filename="TZ_Yields_2022.png")
+##Other plotting options see http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS3_MakingMaps_part1_mappingVectorData.html#multiple-layers-with-spplot
+```
+
+Analysis of the *LR*.
+
+```{r lr1}
+map_lr <- tm_shape(tza, name="Average yield (MT/ha) per Region") +
+  tm_fill(col=c("gwad.LR", "lai.LR", "wsgd.LR"),   title=c("LR Yield (MT/ha)", "LR LAI", "LR water stress", "LR LAI"), textNA = "No data", breaks=c(-Inf, seq(0, 5, by=1), Inf),style="fixed") +
+   tm_facets(sync = TRUE, ncol = 2, nrow=2) +
+#   #tm_text("District", size = 0.75)+
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+map_lr
+tmap_save(map_lr, scale =1.6, dpi= 300, filename="TZ_unimodal_Yields_2022.png")
+
+p1 <- tm_shape(tza, name="Average yield (MT/ha) per District") +
+  tm_fill("gwad.LR", title="LR Yield (MT/ha)", textNA = "No data", breaks=c(-Inf, seq(1, 4, by=1), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+p2 <- tm_shape(tza, name="Average LAI per District") +
+  tm_fill("lai.LR", title="LR LAI", textNA = "No data", breaks=c(-Inf, seq(1, 2, by=0.25), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+
+p3 <- tm_shape(tza, name="Average water stress per District") +
+  tm_fill("wsgd.LR", title="LR water stress", textNA = "No data", breaks=c(-Inf, seq(0, 1, by=0.25), Inf),style="quantile") +
+   tm_layout(title.size =5, panel.label.size=6)+
+   tm_format("World")
+
+#current.mode <- tmap_mode("plot")
+plots <- tmap_arrange(p1, p2, p3, ncol =2)
+plots
+#tmap_mode(current.mode)
+
+```
+
+### Annual Seasonal Trends
+
+Visualize maize yield trends for the last 15 years.
+ 
+```{r bb1, echo=FALSE}
+library(ggplot2)
+temp <- rh[rh$date > 2007,]
+p <- ggplot(temp, aes(x = date, y = gwad))
+ 
+p <- p + geom_boxplot(
+   aes(fill = Season),
+   position = position_dodge(0.9) 
+   ) +
+   scale_fill_manual(values = c("#999999", "#E69F00", "green"))+
+   ggtitle("Annual Seasonal  Maize Yield Trend")+
+   labs(y = "Yield (MT/ha)", x = "Year")
+ p
+
+```
+ 
+ 
+Visualize yields per region between 2000-2022 for OND season only.
+ 
+```{r bb2, message=F, echo=F}
+#temp <- rh[rh$Season=="OND",]
+# par(mai=c(1,2.3,1,1))
+# boxplot(temp$gwad ~ temp$Region, las=1, cex.axis=.75, horizontal=TRUE, xlab="Yield (MT/ha)", ylab="", cex=.5, col=rainbow(length(unique(temp$Region))))
+```
+ 
+ 
+## Total production
+
+Total production (MT) can be estimated by multiplying unit production estimates (MT/ha) from RHEAS by area under maize in each district. 
+Statistics for area under maize in different districts in Tanzania collected through National Bureau  of Statistics agricultural census survey of 2019/2020 is adopted.
+ 
+```{r p1, message=F, echo=F, warning=F}
+library(readstata13)
+pa <- read.dta13(paste0(root, "Reference/Tanzania/NBS_Maize_2019_20 Agric Census/Maize_Shorty_Rainy_Season.dta"), convert.factors=T, generate.factors=T)
+pb <- read.dta13(paste0(root, "Reference/Tanzania/NBS_Maize_2019_20 Agric Census/Maize_Long_Rainy_Season.dta"), convert.factors=T, generate.factors=T)
+```
+

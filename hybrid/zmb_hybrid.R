@@ -324,6 +324,13 @@ rmse <- function(error){
   sqrt(mean(error^2, na.rm=T))
 }
 
+ubrmse <- function(pred, obs){
+  x <- obs-mean(obs, na.rm=T)
+  y <- pred - mean(pred, na.rm=T)
+  error <- y-x
+  return(sqrt(mean(error^2, na.rm=T)))
+}
+
 #“Mean Bias Error” is the tendency of a measurement process to overestimate or underestimate the value of a parameter.
 MBE <- function(obs, pred){
   error <- obs - pred
@@ -408,12 +415,11 @@ b_rf <- merge(b_rf, ref, by=c("District", "year"))
 b_lm <- na.omit(readRDS("ZMB_EO_RHEAS_LM_accuracy_Districts.rds"))
 b_lm <- merge(b_lm, ref, by=c("District", "year"))
 
-
 ###Compute RMSE, MAPE and R2 for RHEAS
 error <- function(df, method){
   dists <- sort(unique(df$District))
-  dff <- data.frame(matrix(nrow= length(dists), ncol = 6))
-  colnames(dff) <- c("District", "Method","RMSE", "MAPE", "RRMSE", "MBE")
+  dff <- data.frame(matrix(nrow= length(dists), ncol = 7))
+  colnames(dff) <- c("District", "Method","RMSE", "MAPE", "RRMSE", "MBE", 'ubRMSE')
   dff$Method <- method
   dff$District <- dists
   for(i in 1:length(unique(df$District))){
@@ -422,6 +428,7 @@ error <- function(df, method){
     dff$MAPE[dff$District==dists[i]]  <-  MAPE(temp$yield_MT_ha, temp$yield)
     dff$RRMSE[dff$District==dists[i]] <-  rrmse(temp$yield_MT_ha, temp$yield)
     dff$MBE[dff$District==dists[i]]   <-  MBE(temp$yield_MT_ha, temp$yield)
+    dff$ubRMSE[dff$District==dists[i]]   <-  ubrmse(temp$yield_MT_ha, temp$yield)
   }
   return(dff)
   
@@ -436,6 +443,7 @@ e2_rf <- error(b_rf, "RF-H")
 e2_lm <- error(b_lm, "LM-H")
 
 er <- Reduce(function(x, y) merge(x, y, all=TRUE), list(e_rh, e_svm, e_rf, e_lm, e2_svm, e2_rf, e2_lm))
+write.csv(er,"ZMB_District_accuracy_metrics.csv")
 
 png(paste0(root, "Results/ZMB/ZMB_Model_bias.png"), units="px", width=2350, height=2350, res=300, pointsize=16)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
