@@ -321,6 +321,11 @@ ubrmse <- function(pred, obs){
   return(sqrt(mean(error^2, na.rm=T)))
 }
 #“Mean Bias Error” is the tendency of a measurement process to overestimate or underestimate the value of a parameter.
+#Bias in “Mean Bias Error” is the tendency of a measurement process to overestimate or underestimate the value of a parameter. Bias has only one direction, which can be either positive or negative. A positive bias means the error from the data is overestimated and a negative bias means the error is underestimated.
+#Mean Bias Error (MBE) is the mean of the difference between the predicted values and the actual values.
+#This evaluation metric quantifies the overall bias and captures the average bias in the prediction. It is
+#almost similar to MAE, the only difference being the absolute value is not taken here. This evaluation
+#metric should be handled carefully as the positive and negative errors can cancel each other out.
 MBE <- function(obs, pred){
   error <- pred - obs
   return (mean(error, na.rm=T))#( mean(sum(error, na.rm=T)/length(obs)) )
