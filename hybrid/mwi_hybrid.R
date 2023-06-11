@@ -346,7 +346,7 @@ R_square <- function(obs, pred) {
 } 
 #Excellent when RRMSE < 10%, Good when RRMSE is between 10% and 20%, Fair when RRMSE is between 20% and 30% and Poor when RRMSE > 30%
 rrmse <- function(obs, pred){
-  num <- sum((obs - pred)^2, na.rm=T)
+  num <- mean((obs - pred)^2, na.rm=T)
   den <- sum((pred)^2, na.rm=T)
   squared_error <- num/den
   rrmse_loss <- sqrt(squared_error)
