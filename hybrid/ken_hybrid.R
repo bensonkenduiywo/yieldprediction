@@ -9,7 +9,7 @@ ref_path <- paste0(root, "Reference/Kenya/MOA/")
 #==============================================================================
 #Load 2010-2022 MOA observed yields data
 #==============================================================================
-years <- 2010:2018
+years <- 2012:2021
 ref <- read.csv(paste0(ref_path, "Maize production by County MOALF 2018.csv"), stringsAsFactors =  FALSE)
 names(ref)[1] <- "District"
 ref$District <- toupper(ref$District)
@@ -30,6 +30,14 @@ r1$yield_MT_ha <- r1$Yield_MT/r1$area_ha
 ref <- rbind(ref, r1)
 ref$District <- toupper(ref$District)
 
+ref_new <- read.csv(paste0(ref_path, 'Maize production by County MOALD.csv'))
+ref_new$District[ref_new$District=="Elgeyo Marakwet"] <- "Elgeyo-Marakwet"
+ref_new$District[ref_new$District=="Garrisa"] <- "Garisa"
+ref_new$District[ref_new$District=="Homabay"] <- "Homa Bay"
+ref_new$District[ref_new$District=="Trans-Nzoia"] <- "Trans Nzoia"
+ref_new$District <- toupper(ref_new$District)
+
+ref <- ref_new
 png(paste0(root, "Results/KEN/National_MoA_observed_yields.png"), units="px", width=2250, height=2250, res=300, pointsize=16)
 #pdf(paste0(root, "Results/KEN/National_MoA_observed_yields.pdf"), width=7.5, height=7.5, pointsize=24)
 par(mar=c(4.5,4.5,2,2)) #c(bottom, left, top, right)
@@ -352,7 +360,7 @@ rrmse <- function(obs, pred){
 
 library(dismo)
 library(e1071)
-
+path <-'D:\\RCMRD\\Data\\Yields\\Results\\KEN\\'
 models <- function(vi, years, accName){
   temp <- na.omit(vi)
   y <- years
@@ -385,27 +393,27 @@ models <- function(vi, years, accName){
     temp3 <- rbind(data.frame(District=valid$District, year=valid$year, yield=lm_y))
     d_lm <- rbind(d_lm, temp3)
   }
-  saveRDS(d_svm, paste0(accName,"_SVM_accuracy_Districts.rds"))
-  saveRDS(d_rf, paste0(accName,"_RF_accuracy_Districts.rds"))
-  saveRDS(d_lm, paste0(accName,"_LM_accuracy_Districts.rds"))
+  saveRDS(d_svm, paste0(path, accName, "_SVM_accuracy_Districts.rds"))
+  saveRDS(d_rf, paste0(path, accName, "_RF_accuracy_Districts.rds"))
+  saveRDS(d_lm, paste0(path, accName, "_LM_accuracy_Districts.rds"))
   #val <- aggregate(.~District, val[, c("RMSE", "RRMSE", "MAPE", "District")] , mean, na.rm=T)
 }
 
 #VI only
 models(vi, years = years, accName = "KEN_EO_only")
-a_svm <- na.omit(readRDS("KEN_EO_only_SVM_accuracy_Districts.rds"))
+a_svm <- na.omit(readRDS(paste0(path,"KEN_EO_only_SVM_accuracy_Districts.rds")))
 a_svm <- merge(a_svm, ref, by=c("District", "year"))
-a_rf <- na.omit(readRDS("KEN_EO_only_RF_accuracy_Districts.rds"))
+a_rf <- na.omit(readRDS(paste0(path,"KEN_EO_only_RF_accuracy_Districts.rds")))
 a_rf <- merge(a_rf, ref, by=c("District", "year"))
-a_lm <- na.omit(readRDS("KEN_EO_only_LM_accuracy_Districts.rds"))
+a_lm <- na.omit(readRDS(paste0(path,"KEN_EO_only_LM_accuracy_Districts.rds")))
 a_lm <- merge(a_lm, ref, by=c("District", "year"))
 #VI+RHEAS
 models(data, years = years, accName = "KEN_EO_RHEAS")
-b_svm <- na.omit(readRDS("KEN_EO_RHEAS_SVM_accuracy_Districts.rds"))
+b_svm <- na.omit(readRDS(paste0(path,"KEN_EO_RHEAS_SVM_accuracy_Districts.rds")))
 b_svm <- merge(b_svm, ref, by=c("District", "year"))
-b_rf <- na.omit(readRDS("KEN_EO_RHEAS_RF_accuracy_Districts.rds"))
+b_rf <- na.omit(readRDS(paste0(path,"KEN_EO_RHEAS_RF_accuracy_Districts.rds")))
 b_rf <- merge(b_rf, ref, by=c("District", "year"))
-b_lm <- na.omit(readRDS("KEN_EO_RHEAS_LM_accuracy_Districts.rds"))
+b_lm <- na.omit(readRDS(paste0(path,"KEN_EO_RHEAS_LM_accuracy_Districts.rds")))
 b_lm <- merge(b_lm, ref, by=c("District", "year"))
 
 ###Compute RMSE, MAPE and R2 for RHEAS
@@ -428,6 +436,8 @@ error <- function(df, method){
 } #a_rh <- readRDS("KEN_RHEAS_accuracy_Districts.rds")
 names(rheas)[5] <- "yield"
 e_rh <- error(rheas, "RHEAS")
+saveRDS(e_rh, paste0(path,"RHEAS_accuracy_Districts.rds"))
+
 e_svm <- error(a_svm, "SVM-VI")
 e_rf <- error(a_rf, "RF-VI")
 e_lm <- error(a_lm, "LM-VI")
@@ -438,7 +448,7 @@ e2_lm <- error(b_lm, "LM-H")
 er <- Reduce(function(x, y) merge(x, y, all=TRUE), list(e_rh, e_svm, e_rf, e_lm, e2_svm, e2_rf, e2_lm))
 temp <- er
 names(temp)[1] <- 'County'
-write.csv(temp,"KEN_County_accuracy_metrics.csv")
+write.csv(temp,paste0(path,"KEN_County_accuracy_metrics.csv"))
 
 png(paste0(root, "Results/KEN/KEN_Model_bias.png"), units="px", width=2800, height=2800, res=300, pointsize=16)
 pdf(paste0(root, "Results/KEN/KEN_Model_bias.pdf"), width=9.3, height=9.3, pointsize=16)

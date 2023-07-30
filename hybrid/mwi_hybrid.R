@@ -354,7 +354,7 @@ rrmse <- function(obs, pred){
 
 library(dismo)
 library(e1071)
-
+path <-'D:\\RCMRD\\Data\\Yields\\Results\\MWI\\'
 models <- function(vi, years, accName){
   temp <- na.omit(vi)
   y <- years
@@ -371,12 +371,12 @@ models <- function(vi, years, accName){
     val_p <- subset(valid, select=-c(year,District))
     observed_y <- valid$yield_MT_ha
     #1.0 SVM
-    tuneResult <- tune.svm(yield_MT_ha~.,  data = train, epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5), kernel="radial" )#tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5)), kernel="radial" )
+    tuneResult <- tune.svm(yield_MT_ha~.,  data = train, epsilon = seq(0,1,0.1), cost = seq(0.5,8,.5), kernel="radial" )#tuneResult <- tune(method="svm", yield_MT_ha~.,  data = train, ranges = list(epsilon = seq(0,1,0.1), cost = (seq(0.5,8,.5))), kernel="radial" )
     svm_y <- predict(tuneResult$best.model, val_p)
     temp1 <- rbind(data.frame(District=valid$District, year=valid$year, yield=svm_y))
     d_svm <- rbind(d_svm, temp1)
     #2.0 RF
-    tuneRF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50)) #tuneRF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50)) #<- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = seq(100, 500))) 
+    tuneRF <- tune.randomForest(yield_MT_ha~.,  data = train, ntree=seq(100,500,50))#tuneRF <- tune(method="randomForest", yield_MT_ha~.,  data = train, ranges = list(ntree = c(100, 500))) 
     rf_y <- predict(tuneRF$best.model, val_p)
     temp2 <- rbind(data.frame(District=valid$District, year=valid$year, yield=rf_y))
     d_rf <- rbind(d_rf, temp2)
@@ -387,11 +387,12 @@ models <- function(vi, years, accName){
     temp3 <- rbind(data.frame(District=valid$District, year=valid$year, yield=lm_y))
     d_lm <- rbind(d_lm, temp3)
   }
-  saveRDS(d_svm, paste0(accName,"_SVM_accuracy_Districts.rds"))
-  saveRDS(d_rf, paste0(accName,"_RF_accuracy_Districts.rds"))
-  saveRDS(d_lm, paste0(accName,"_LM_accuracy_Districts.rds"))
+  saveRDS(d_svm, paste0(path, accName, "_SVM_accuracy_Districts.rds"))
+  saveRDS(d_rf, paste0(path, accName, "_RF_accuracy_Districts.rds"))
+  saveRDS(d_lm, paste0(path, accName, "_LM_accuracy_Districts.rds"))
   #val <- aggregate(.~District, val[, c("RMSE", "RRMSE", "MAPE", "District")] , mean, na.rm=T)
 }
+
 
 #VI only
 models(vi, years = years, accName = "MWI_EO_only")
@@ -430,6 +431,8 @@ error <- function(df, method){
 } #a_rh <- readRDS("ZMB_RHEAS_accuracy_Districts.rds")
 names(rheas)[5] <- "yield"
 e_rh <- error(rheas, "RHEAS")
+saveRDS(e_rh, paste0(path,"RHEAS_accuracy_Districts.rds"))
+
 e_svm <- error(a_svm, "SVM-VI")
 e_rf <- error(a_rf, "RF-VI")
 e_lm <- error(a_lm, "LM-VI")
