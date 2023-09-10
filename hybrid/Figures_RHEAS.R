@@ -6,6 +6,7 @@ source('D:/RCMRD/Code/yieldprediction/hybrid/functions.R')
 ## Spatial Visualization
 #=======================================================================
 library(raster)
+#1.0 KENYA============
 ken <- shapefile("D:/Adm data/Kenya_counties_2011/Kenya_county_dd.shp")
 names(ken)[4] <- "County"
 path <-'D:\\RCMRD\\Data\\Yields\\Results\\KEN\\'
@@ -23,7 +24,7 @@ ken$Country <- 'Kenya'
 ken <-  merge(ken[,c("District", 'Country')], temp, by = "District", all.x=T) # duplicateGeoms = TRUE
 rm(temp)
 
-#Malawi
+#2.0 MALAWI============
 mwi <- shapefile("D:/Adm data/Malawi/gadm40_MWI_1.shp")
 mw_ref <- read.csv(paste0(root, "Reference/Malawi/MOA/MALAWI_MOA_MAIZE_Production data.csv"), stringsAsFactors =  FALSE)
 mw_ref$District <- toupper(mw_ref$District)
@@ -39,7 +40,7 @@ mwi$Country <- 'Malawi'
 mwi <-  merge(mwi[,c("District", 'Country')], temp, by = "District", all.x=T) # duplicateGeoms = TRUE
 rm(temp)
 
-#Zambia
+#3.0 ZAMBIA============
 zmb <- shapefile("D:/Adm data/Zambia/2010 Districts/district_74_dd.shp")
 zm_ref <- read.csv(paste0(root, "Reference/Zambia/MOA/Zambia_District _Maize_Forecasting_2011_2022.csv"), stringsAsFactors =  FALSE)
 zm_ref$District <- toupper(zm_ref$District)
@@ -59,7 +60,7 @@ zmb <-  merge(zmb[,c("District", 'Country')], temp, by = "District", all.x=T) # 
 all <- Reduce('rbind', list(ken, mwi, zmb))
 shapefile(all, paste0(root, "Results/RHEAS_Errors_Spatial_distribution.shp"),overwrite=TRUE)
 
-# Random Forest RMSE
+# 1.0 RHEAS RRMSE
 #=========================================================================
 library(tmap)
 library(mapview)
@@ -107,7 +108,7 @@ all_v1 <- tm_shape(all) +
 all_v1
 tmap_save(all_v1, paste0(root, "Results/RHEAS_RRMSE_Spatial_Distribution.html"))
 
-# Random Forest ubRMSE
+# 2.0 RHEAS ubRMSE
 #=========================================================================
 tmap_mode("plot")
 map4 <- tm_shape(ken, name="ubRMSE") +
@@ -152,8 +153,9 @@ all_v3
 tmap_save(all_v3, paste0(root, "Results/RHEAS_ubRMSE_Spatial_Distribution.html"))
 
 
-# Random Forest MBE palette = get_brewer_pal("RdYlBu", n = 6),
+# 3.0 RHEAS MBE palette = get_brewer_pal("RdYlBu", n = 6),
 #=========================================================================
+library(tmaptools)
 tmap_mode("plot")
 map7 <- tm_shape(ken, name="MBE") +
   tm_grid(lines = FALSE, labels.size = 1)+
@@ -183,7 +185,7 @@ leg.MBE <- tm_shape(zmb) +
 maps3 <- tmap_arrange(map7, map8, map9, leg.MBE, nrow =2)
 maps3
 
-tmap_save(maps3, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filename=paste0(root, "Results/RF-H_MBE_Spatial_Distribution.png"))
+tmap_save(maps3, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filename=paste0(root, "Results/RHEAS_MBE_Spatial_Distribution.png"))
 
 #Map in view mode to help check values 
 tmap_mode("view")
@@ -194,5 +196,5 @@ all_v4 <- tm_shape(all) +
   tm_facets(by = "Country", as.layers = T) 
 
 all_v4
-tmap_save(all_v4, paste0(root, "Results/RF-H_MBE_Spatial_Distribution.html"))
+tmap_save(all_v4, paste0(root, "Results/RHEAS_MBE_Spatial_Distribution.html"))
 
