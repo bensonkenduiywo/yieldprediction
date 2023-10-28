@@ -131,33 +131,33 @@ zmb <-  merge(zmb[,c("District", 'Country')], zm_rf, by = "District", all.x=T) #
 all <- Reduce('rbind', list(ken, mwi, zmb))
 shapefile(all, paste0(root, "Results/RF-H_Errors_Spatial_distribution.shp"),overwrite=TRUE)
 
-# Random Forest RMSE
+# Random Forest RRMSE
 #=========================================================================
 library(tmap)
 library(mapview)
 tmap_mode("plot")
 map1 <- tm_shape(ken, name="RRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 70, 5), textNA = "No data") +
   tm_borders(col = 'black')+
   #tm_text("County", size = 0.4, remove.overlap = TRUE)+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))#+
 #tm_layout(legend.outside = TRUE)# +
 #tm_format("World")
 map1
 
 map2 <- tm_shape(mwi, name="RRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 70, 5), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))
 map2
 
 map3 <- tm_shape(zmb, name="RRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 70, 5), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('center', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title.position = c('center', 'top'))
 map3
 
 legend.map <- tm_shape(zmb) + 
@@ -171,7 +171,7 @@ tmap_save(all_map, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filena
 #Map in view mode to help check values 
 tmap_mode("view")
 all_v1 <- tm_shape(all) +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("RRMSE", title="RRMSE", breaks = seq(10, 70, 5), textNA = "No data", 
           legend.show = F) +
   tm_facets(by = "Country", as.layers = T) 
@@ -183,24 +183,24 @@ tmap_save(all_v1, paste0(root, "Results/RF-H_RRMSE_Spatial_Distribution.html"))
 #=========================================================================
 tmap_mode("plot")
 map4 <- tm_shape(ken, name="ubRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("ubRMSE", title="ubRMSE", breaks = seq(0.1, 2.2, 0.3), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))#+
 map4
 
 map5 <- tm_shape(mwi, name="ubRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("ubRMSE", title="ubRMSE", breaks = seq(0.1, 2.2, 0.3), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))
 map5
 
 map6 <- tm_shape(zmb, name="ubRMSE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("ubRMSE", title="ubRMSE", breaks = seq(0.1, 2.2, 0.3), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('center', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title.position = c('center', 'top'))
 map6
 
 leg.ubRMSE <- tm_shape(zmb) + 
@@ -215,7 +215,7 @@ tmap_save(maps2, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filename
 #Map in view mode to help check values 
 tmap_mode("view")
 all_v3 <- tm_shape(all) +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("ubRMSE", title="ubRMSE", breaks = seq(0.1, 2.2, 0.3), textNA = "No data", 
           legend.show = F) +
   tm_facets(by = "Country", as.layers = T) 
@@ -228,24 +228,24 @@ tmap_save(all_v3, paste0(root, "Results/RF-H_ubRMSE_Spatial_Distribution.html"))
 #=========================================================================
 tmap_mode("plot")
 map7 <- tm_shape(ken, name="MBE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("MBE",  palette = get_brewer_pal("Spectral", n = 6), midpoint =0, title="MBE", breaks = seq(-0.3,0.8,0.2), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Kenya', title.position = c('right', 'top'))#+
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))#+
 map7
 
 map8 <- tm_shape(mwi, name="MBE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("MBE", palette = get_brewer_pal("Spectral", n = 6), midpoint =0, title="MBE", breaks = seq(-0.3,0.8,0.2), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title= 'Malawi', title.position = c('right', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("left", "bottom"), title.position = c('right', 'top'))
 map8
 
 map9 <- tm_shape(zmb, name="MBE") +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("MBE", palette = get_brewer_pal("Spectral", n = 6), midpoint =0, title="MBE", breaks = seq(-0.3,0.8,0.2), textNA = "No data") +
   tm_borders(col = 'black')+
-  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title= 'Zambia', title.position = c('center', 'top'))
+  tm_layout(panel.label.size=6, legend.show = FALSE, legend.position = c("right", "bottom"), title.position = c('center', 'top'))
 map9
 
 leg.MBE <- tm_shape(zmb) + 
@@ -260,11 +260,16 @@ tmap_save(maps3, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filename
 #Map in view mode to help check values 
 tmap_mode("view")
 all_v4 <- tm_shape(all) +
-  tm_grid(lines = FALSE, labels.size = 1)+
+  tm_grid(lines = FALSE, labels.size = 0.8, n.x = 3, n.y = 6)+
   tm_fill("MBE", palette = get_brewer_pal("Spectral", n = 6), midpoint =0, breaks = seq(-0.3,0.8,0.2),
           legend.show = F) +
   tm_facets(by = "Country", as.layers = T) 
 
 all_v4
 tmap_save(all_v4, paste0(root, "Results/RF-H_MBE_Spatial_Distribution.html"))
+
+rfhmap <- tmap_arrange(map1, map2, map3, legend.map, map4, map5, map6, leg.ubRMSE,
+                       map7, map8, map9, leg.MBE, ncol =4) 
+#rfhmap
+tmap_save(rfhmap, scale =1.6, dpi= 600, height=8, width=8, units = 'in', filename=paste0(root, "Results/RF-H_Spatial_Distribution.png"))
 
